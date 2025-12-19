@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -9,11 +9,13 @@ import {
   User, 
   Sparkles,
   Menu,
-  X
+  X,
+  QrCode
 } from 'lucide-react';
-import { useState } from 'react';
 import AnimatedBackground from './ui/AnimatedBackground';
 import AIChatbot from './ui/AIChatbot';
+import { NotificationBell, NotificationPanel, NotificationToastContainer } from './ui/NotificationCenter';
+import QRCodeModal from './ui/QRCodeModal';
 import { cn } from '@/lib/utils';
 
 interface LayoutProps {
@@ -31,6 +33,13 @@ const navItems = [
 const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+
+  // Get user profile for QR code
+  const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+  const profileId = userProfile.id || 'demo-user';
+  const profileName = userProfile.name || 'Demo User';
 
   return (
     <div className="min-h-screen relative">
@@ -78,18 +87,34 @@ const Layout = ({ children }: LayoutProps) => {
               })}
             </div>
 
-            {/* Mobile Menu Button */}
-            <motion.button
-              className="md:hidden p-2 rounded-xl hover:bg-muted/50"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              whileTap={{ scale: 0.95 }}
-            >
-              {mobileMenuOpen ? (
-                <X className="w-6 h-6" />
-              ) : (
-                <Menu className="w-6 h-6" />
-              )}
-            </motion.button>
+            {/* Action buttons */}
+            <div className="flex items-center gap-2">
+              {/* QR Code Button */}
+              <motion.button
+                onClick={() => setQrModalOpen(true)}
+                className="p-2 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <QrCode className="w-5 h-5 text-foreground" />
+              </motion.button>
+
+              {/* Notification Bell */}
+              <NotificationBell onClick={() => setNotificationPanelOpen(!notificationPanelOpen)} />
+
+              {/* Mobile Menu Button */}
+              <motion.button
+                className="md:hidden p-2 rounded-xl hover:bg-muted/50"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                whileTap={{ scale: 0.95 }}
+              >
+                {mobileMenuOpen ? (
+                  <X className="w-6 h-6" />
+                ) : (
+                  <Menu className="w-6 h-6" />
+                )}
+              </motion.button>
+            </div>
           </div>
 
           {/* Mobile Navigation */}
@@ -142,6 +167,27 @@ const Layout = ({ children }: LayoutProps) => {
 
       {/* AI Chatbot */}
       <AIChatbot />
+
+      {/* Notification Panel */}
+      <NotificationPanel 
+        isOpen={notificationPanelOpen} 
+        onClose={() => setNotificationPanelOpen(false)} 
+      />
+
+      {/* Notification Toasts */}
+      <NotificationToastContainer />
+
+      {/* QR Code Modal */}
+      <QRCodeModal
+        isOpen={qrModalOpen}
+        onClose={() => setQrModalOpen(false)}
+        profileId={profileId}
+        profileName={profileName}
+        onScanResult={(id) => {
+          console.log('Scanned profile:', id);
+          // Could navigate to profile or show connection modal
+        }}
+      />
     </div>
   );
 };

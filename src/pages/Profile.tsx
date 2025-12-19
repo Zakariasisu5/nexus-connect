@@ -11,13 +11,17 @@ import {
   Edit3,
   Save,
   Upload,
-  X
+  X,
+  QrCode,
+  Share2
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import GlassCard from '@/components/ui/GlassCard';
 import NeonButton from '@/components/ui/NeonButton';
 import ChipTag from '@/components/ui/ChipTag';
+import QRCodeModal from '@/components/ui/QRCodeModal';
 import { toast } from '@/hooks/use-toast';
+import { showNotification } from '@/components/ui/NotificationCenter';
 
 interface ProfileData {
   name: string;
@@ -36,6 +40,7 @@ interface ProfileData {
 
 const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
   const [profile, setProfile] = useState<ProfileData>(() => {
     const saved = localStorage.getItem('userProfile');
     if (saved) {
@@ -109,10 +114,16 @@ const Profile = () => {
             <p className="text-muted-foreground mt-1">Manage your professional profile</p>
           </div>
           {!isEditing ? (
-            <NeonButton onClick={() => setIsEditing(true)}>
-              <Edit3 className="w-4 h-4" />
-              <span>Edit Profile</span>
-            </NeonButton>
+            <div className="flex gap-3">
+              <NeonButton variant="secondary" onClick={() => setShowQRModal(true)}>
+                <QrCode className="w-4 h-4" />
+                <span>Share QR</span>
+              </NeonButton>
+              <NeonButton onClick={() => setIsEditing(true)}>
+                <Edit3 className="w-4 h-4" />
+                <span>Edit Profile</span>
+              </NeonButton>
+            </div>
           ) : (
             <div className="flex gap-3">
               <NeonButton variant="secondary" onClick={handleCancel}>
@@ -314,6 +325,27 @@ const Profile = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* QR Code Modal */}
+        <QRCodeModal
+          isOpen={showQRModal}
+          onClose={() => setShowQRModal(false)}
+          profileId={profile.email.split('@')[0]}
+          profileName={profile.name}
+          onScanResult={(id) => {
+            showNotification(
+              'match',
+              'New Connection!',
+              `Successfully connected via QR code`,
+              {
+                action: {
+                  label: 'View Matches',
+                  onClick: () => window.location.href = '/matches',
+                },
+              }
+            );
+          }}
+        />
       </div>
     </Layout>
   );

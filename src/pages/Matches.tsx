@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
@@ -19,6 +19,7 @@ import GlassCard from '@/components/ui/GlassCard';
 import NeonButton from '@/components/ui/NeonButton';
 import ChipTag from '@/components/ui/ChipTag';
 import { toast } from '@/hooks/use-toast';
+import { triggerMatchNotification, triggerMeetingNotification } from '@/hooks/useDemoNotifications';
 
 interface Match {
   id: string;
@@ -125,9 +126,15 @@ const Matches = () => {
     return matchesSearch && matchesFilter;
   });
 
-  const handleConnect = (matchId: string, matchName: string) => {
+  const handleConnect = (matchId: string, match: Match) => {
     setConnections((prev) => ({ ...prev, [matchId]: 'pending' }));
-    toast({ title: 'Connection Request Sent', description: `Waiting for ${matchName} to accept.` });
+    toast({ title: 'Connection Request Sent', description: `Waiting for ${match.name} to accept.` });
+    
+    // Simulate connection acceptance after 3 seconds
+    setTimeout(() => {
+      setConnections((prev) => ({ ...prev, [matchId]: 'connected' }));
+      triggerMatchNotification(match.name, match.avatar);
+    }, 3000);
   };
 
   const handleMessage = (matchName: string) => {
@@ -136,6 +143,7 @@ const Matches = () => {
 
   const handleSchedule = (matchName: string) => {
     toast({ title: 'Schedule Meeting', description: `Opening scheduler for ${matchName}...` });
+    triggerMeetingNotification(`Coffee chat with ${matchName}`, '2:00 PM tomorrow');
   };
 
   const getMatchScoreColor = (score: number) => {
@@ -323,7 +331,7 @@ const Matches = () => {
                           <NeonButton
                             size="sm"
                             className="flex-1"
-                            onClick={(e) => { e.stopPropagation(); handleConnect(match.id, match.name); }}
+                            onClick={(e) => { e.stopPropagation(); handleConnect(match.id, match); }}
                           >
                             <Heart className="w-4 h-4" />
                             <span>Connect</span>
