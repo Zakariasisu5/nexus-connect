@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -17,9 +17,11 @@ import AnimatedBackground from '@/components/ui/AnimatedBackground';
 import GlassCard from '@/components/ui/GlassCard';
 import NeonButton from '@/components/ui/NeonButton';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 const Auth = () => {
   const navigate = useNavigate();
+  const { session, signIn, signUp, loading } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -29,6 +31,13 @@ const Auth = () => {
     password: '',
     confirmPassword: '',
   });
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (session) {
+      navigate('/');
+    }
+  }, [session, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,14 +49,39 @@ const Auth = () => {
       return;
     }
 
-    // Simulate auth
-    setTimeout(() => {
-      localStorage.setItem('isAuthenticated', 'true');
-      localStorage.setItem('user', JSON.stringify({ name: form.name || 'User', email: form.email }));
-      toast({ title: 'Success', description: isSignUp ? 'Account created!' : 'Welcome back!' });
-      navigate('/profile-setup');
+    if (form.password.length < 6) {
+      toast({ title: 'Error', description: 'Password must be at least 6 characters', variant: 'destructive' });
       setIsLoading(false);
-    }, 1500);
+      return;
+    }
+
+    try {
+      if (isSignUp) {
+        const { error } = await signUp(form.email, form.password, form.name);
+        if (error) {
+          if (error.message.includes('already registered')) {
+            toast({ title: 'Error', description: 'This email is already registered. Please sign in instead.', variant: 'destructive' });
+          } else {
+            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+          }
+        } else {
+          toast({ title: 'Success', description: 'Account created! Welcome to MeetMate!' });
+          navigate('/profile-setup');
+        }
+      } else {
+        const { error } = await signIn(form.email, form.password);
+        if (error) {
+          toast({ title: 'Error', description: 'Invalid email or password', variant: 'destructive' });
+        } else {
+          toast({ title: 'Welcome back!', description: 'Successfully signed in.' });
+          navigate('/');
+        }
+      }
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'An error occurred', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const features = [
@@ -55,6 +89,14 @@ const Auth = () => {
     { icon: Zap, title: 'One-Click Onboarding', description: 'Connect instantly' },
     { icon: Users, title: 'AI-Powered Matching', description: 'Find perfect connections' },
   ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen relative flex items-center justify-center p-4">

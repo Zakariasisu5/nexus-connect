@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -16,6 +16,8 @@ import GlassCard from '@/components/ui/GlassCard';
 import NeonButton from '@/components/ui/NeonButton';
 import ChipTag from '@/components/ui/ChipTag';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 
 const skillOptions = [
   'Product Design', 'UX Research', 'Frontend Dev', 'Backend Dev', 'AI/ML',
@@ -36,6 +38,8 @@ const goalOptions = [
 
 const ProfileSetup = () => {
   const navigate = useNavigate();
+  const { session, loading: authLoading } = useAuth();
+  const { profile: existingProfile, updateProfile, loading: profileLoading } = useProfile();
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [avatar, setAvatar] = useState<string | null>(null);
@@ -50,6 +54,32 @@ const ProfileSetup = () => {
     interests: [] as string[],
     goals: [] as string[],
   });
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!authLoading && !session) {
+      navigate('/auth');
+    }
+  }, [session, authLoading, navigate]);
+
+  // Pre-fill with existing profile data
+  useEffect(() => {
+    if (existingProfile) {
+      setProfile({
+        name: existingProfile.full_name || '',
+        title: existingProfile.title || '',
+        company: existingProfile.company || '',
+        location: existingProfile.location || '',
+        bio: existingProfile.bio || '',
+        skills: existingProfile.skills || [],
+        interests: existingProfile.interests || [],
+        goals: existingProfile.goals || [],
+      });
+      if (existingProfile.avatar_url) {
+        setAvatar(existingProfile.avatar_url);
+      }
+    }
+  }, [existingProfile]);
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -69,14 +99,27 @@ const ProfileSetup = () => {
     }));
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     setIsLoading(true);
-    setTimeout(() => {
-      localStorage.setItem('userProfile', JSON.stringify({ ...profile, avatar }));
+    try {
+      await updateProfile({
+        full_name: profile.name,
+        title: profile.title,
+        company: profile.company,
+        location: profile.location,
+        bio: profile.bio,
+        skills: profile.skills,
+        interests: profile.interests,
+        goals: profile.goals,
+        avatar_url: avatar,
+      });
       toast({ title: 'Profile Complete!', description: 'Start exploring your matches.' });
-      navigate('/');
+      navigate('/matches');
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to save profile', variant: 'destructive' });
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const steps = [
@@ -84,6 +127,14 @@ const ProfileSetup = () => {
     { number: 2, title: 'Skills', icon: Briefcase },
     { number: 3, title: 'Goals', icon: Target },
   ];
+
+  if (authLoading || profileLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen relative flex items-center justify-center p-4">
