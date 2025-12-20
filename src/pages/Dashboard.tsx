@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { 
   BarChart3, 
   Users, 
@@ -8,13 +9,15 @@ import {
   TrendingUp,
   Target,
   Award,
-  Activity,
   Download,
-  Sparkles
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import GlassCard from '@/components/ui/GlassCard';
 import NeonButton from '@/components/ui/NeonButton';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Metric {
   label: string;
@@ -24,15 +27,93 @@ interface Metric {
   color: string;
 }
 
+interface AnalyticsData {
+  total_matches: number;
+  total_meetings: number;
+  total_connections: number;
+  response_rate: number;
+}
+
 const Dashboard = () => {
+  const navigate = useNavigate();
+  const { session, loading: authLoading } = useAuth();
   const [selectedPeriod, setSelectedPeriod] = useState('week');
   const [animatedValues, setAnimatedValues] = useState<Record<string, number>>({});
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [topMatches, setTopMatches] = useState<any[]>([]);
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!authLoading && !session) {
+      navigate('/auth');
+    }
+  }, [session, authLoading, navigate]);
+
+  // Fetch analytics data
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetchAnalytics();
+      fetchTopMatches();
+    }
+  }, [session?.user?.id]);
+
+  const fetchAnalytics = async () => {
+    if (!session?.user?.id) return;
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('analytics', {
+        body: { userId: session.user.id, type: 'personal' }
+      });
+      
+      if (error) throw error;
+      setAnalytics(data);
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+      // Set default values on error
+      setAnalytics({
+        total_matches: 0,
+        total_meetings: 0,
+        total_connections: 0,
+        response_rate: 0
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchTopMatches = async () => {
+    if (!session?.user?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('matches')
+        .select(`
+          id,
+          match_score,
+          matched_user_id,
+          profiles:matched_user_id (
+            full_name,
+            company,
+            avatar_url
+          )
+        `)
+        .eq('user_id', session.user.id)
+        .order('match_score', { ascending: false })
+        .limit(4);
+      
+      if (error) throw error;
+      setTopMatches(data || []);
+    } catch (error) {
+      console.error('Error fetching top matches:', error);
+    }
+  };
 
   const metrics: Metric[] = [
-    { label: 'Total Matches', value: 47, change: 12, icon: Users, color: 'primary' },
-    { label: 'Scheduled Meetings', value: 23, change: 8, icon: Calendar, color: 'accent' },
-    { label: 'Active Connections', value: 34, change: 15, icon: MessageCircle, color: 'secondary' },
-    { label: 'Response Rate', value: 78, change: 5, icon: TrendingUp, color: 'primary' },
+    { label: 'Total Matches', value: analytics?.total_matches || 0, change: 12, icon: Users, color: 'primary' },
+    { label: 'Scheduled Meetings', value: analytics?.total_meetings || 0, change: 8, icon: Calendar, color: 'accent' },
+    { label: 'Active Connections', value: analytics?.total_connections || 0, change: 15, icon: MessageCircle, color: 'secondary' },
+    { label: 'Response Rate', value: analytics?.response_rate || 0, change: 5, icon: TrendingUp, color: 'primary' },
   ];
 
   const chartData = [
@@ -43,13 +124,6 @@ const Dashboard = () => {
     { day: 'Fri', matches: 6, meetings: 3 },
     { day: 'Sat', matches: 4, meetings: 2 },
     { day: 'Sun', matches: 2, meetings: 1 },
-  ];
-
-  const topMatches = [
-    { name: 'Anna Chen', score: 94, company: 'DeFi Labs', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=60&h=60&fit=crop&crop=face' },
-    { name: 'Marcus Rodriguez', score: 87, company: 'Ethereum Foundation', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=60&h=60&fit=crop&crop=face' },
-    { name: 'Sarah Kim', score: 82, company: 'Web3 Startup', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=60&h=60&fit=crop&crop=face' },
-    { name: 'David Thompson', score: 78, company: 'AI Research Lab', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=60&h=60&fit=crop&crop=face' },
   ];
 
   const engagementData = [
@@ -66,6 +140,8 @@ const Dashboard = () => {
 
   // Animate numbers on mount
   useEffect(() => {
+    if (isLoading) return;
+    
     metrics.forEach((metric) => {
       let start = 0;
       const end = metric.value;
@@ -81,7 +157,7 @@ const Dashboard = () => {
         setAnimatedValues((prev) => ({ ...prev, [metric.label]: Math.floor(start) }));
       }, 16);
     });
-  }, []);
+  }, [isLoading, analytics]);
 
   const getHeatmapColor = (level: string) => {
     switch (level) {
@@ -94,6 +170,16 @@ const Dashboard = () => {
   };
 
   const maxChartValue = Math.max(...chartData.map((d) => d.matches));
+
+  if (authLoading || isLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -120,6 +206,10 @@ const Dashboard = () => {
               <option value="month">This Month</option>
               <option value="quarter">This Quarter</option>
             </select>
+            <NeonButton variant="secondary" onClick={fetchAnalytics}>
+              <RefreshCw className="w-4 h-4" />
+              <span>Refresh</span>
+            </NeonButton>
             <NeonButton variant="secondary">
               <Download className="w-4 h-4" />
               <span>Export</span>
@@ -204,26 +294,30 @@ const Dashboard = () => {
             <GlassCard className="p-6">
               <h3 className="text-lg font-bold mb-4">Top Matches</h3>
               <div className="space-y-4">
-                {topMatches.map((match, index) => (
-                  <motion.div
-                    key={match.name}
-                    className="flex items-center gap-3"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.5 + index * 0.1 }}
-                  >
-                    <img
-                      src={match.avatar}
-                      alt={match.name}
-                      className="w-10 h-10 rounded-xl object-cover"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-foreground truncate">{match.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{match.company}</p>
-                    </div>
-                    <div className="text-sm font-bold text-accent">{match.score}%</div>
-                  </motion.div>
-                ))}
+                {topMatches.length > 0 ? (
+                  topMatches.map((match, index) => (
+                    <motion.div
+                      key={match.id}
+                      className="flex items-center gap-3"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.5 + index * 0.1 }}
+                    >
+                      <img
+                        src={match.profiles?.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=60&h=60&fit=crop&crop=face'}
+                        alt={match.profiles?.full_name || 'User'}
+                        className="w-10 h-10 rounded-xl object-cover"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-foreground truncate">{match.profiles?.full_name || 'Unknown'}</p>
+                        <p className="text-xs text-muted-foreground truncate">{match.profiles?.company || 'No company'}</p>
+                      </div>
+                      <div className="text-sm font-bold text-accent">{match.match_score || 0}%</div>
+                    </motion.div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">No matches yet</p>
+                )}
               </div>
             </GlassCard>
           </motion.div>
@@ -306,9 +400,9 @@ const Dashboard = () => {
                 <div>
                   <h3 className="font-bold text-foreground mb-2">Performance Goals</h3>
                   <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li>• 50+ total matches this week ✓</li>
-                    <li>• 30+ scheduled meetings ○</li>
-                    <li>• 80%+ response rate ○</li>
+                    <li>• {analytics?.total_matches || 0}/50 total matches this week {(analytics?.total_matches || 0) >= 50 ? '✓' : '○'}</li>
+                    <li>• {analytics?.total_meetings || 0}/30 scheduled meetings {(analytics?.total_meetings || 0) >= 30 ? '✓' : '○'}</li>
+                    <li>• {analytics?.response_rate || 0}%/80% response rate {(analytics?.response_rate || 0) >= 80 ? '✓' : '○'}</li>
                   </ul>
                 </div>
               </div>

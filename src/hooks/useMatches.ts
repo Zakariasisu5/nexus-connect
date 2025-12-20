@@ -2,26 +2,28 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
-interface Match {
+export interface MatchedProfile {
+  id: string;
+  full_name: string | null;
+  title: string | null;
+  company: string | null;
+  location: string | null;
+  avatar_url: string | null;
+  skills: string[] | null;
+  interests: string[] | null;
+  bio: string | null;
+}
+
+export interface Match {
   id: string;
   matched_user_id: string;
-  match_score: number;
-  ai_explanation: string;
-  confidence_score: number;
-  shared_skills: string[];
-  shared_interests: string[];
-  status: string;
-  profile: {
-    id: string;
-    full_name: string;
-    title: string;
-    company: string;
-    location: string;
-    avatar_url: string;
-    skills: string[];
-    interests: string[];
-    bio: string;
-  };
+  match_score: number | null;
+  ai_explanation: string | null;
+  confidence_score: number | null;
+  shared_skills: string[] | null;
+  shared_interests: string[] | null;
+  status: string | null;
+  matched_profile?: MatchedProfile;
 }
 
 export function useMatches() {
@@ -65,7 +67,7 @@ export function useMatches() {
     }
   }, [session]);
 
-  const updateMatchStatus = async (matchId: string, status: 'accepted' | 'rejected') => {
+  const updateMatchStatus = async (matchId: string, status: string) => {
     if (!session) return;
 
     const { error } = await supabase
@@ -82,6 +84,8 @@ export function useMatches() {
       prev.map(m => m.id === matchId ? { ...m, status } : m)
     );
   };
+
+  const refreshMatches = fetchMatches;
 
   // Subscribe to realtime updates
   useEffect(() => {
@@ -109,5 +113,5 @@ export function useMatches() {
     };
   }, [session?.user?.id, fetchMatches]);
 
-  return { matches, loading, error, fetchMatches, updateMatchStatus };
+  return { matches, loading, error, fetchMatches, updateMatchStatus, refreshMatches };
 }

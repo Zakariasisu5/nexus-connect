@@ -7,15 +7,13 @@ import {
   Calendar, 
   BarChart3, 
   ArrowRight,
-  Zap,
-  Shield,
-  Globe,
   QrCode
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import GlassCard from '@/components/ui/GlassCard';
 import NeonButton from '@/components/ui/NeonButton';
 import { useDemoNotifications } from '@/hooks/useDemoNotifications';
+import { useAuth } from '@/hooks/useAuth';
 
 const features = [
   {
@@ -52,8 +50,9 @@ const stats = [
 ];
 
 const Index = () => {
-  // Enable demo notifications
-  useDemoNotifications(true);
+  const { session } = useAuth();
+  // Enable demo notifications only for non-authenticated users
+  useDemoNotifications(!session);
 
   return (
     <Layout>
@@ -88,17 +87,35 @@ const Index = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link to="/auth">
-                <NeonButton size="lg" className="min-w-[200px]">
-                  <span>Get Started Free</span>
-                  <ArrowRight className="w-5 h-5" />
-                </NeonButton>
-              </Link>
-              <Link to="/matches">
-                <NeonButton variant="secondary" size="lg" className="min-w-[200px]">
-                  <span>View Demo</span>
-                </NeonButton>
-              </Link>
+              {session ? (
+                <>
+                  <Link to="/matches">
+                    <NeonButton size="lg" className="min-w-[200px]">
+                      <span>View Matches</span>
+                      <ArrowRight className="w-5 h-5" />
+                    </NeonButton>
+                  </Link>
+                  <Link to="/dashboard">
+                    <NeonButton variant="secondary" size="lg" className="min-w-[200px]">
+                      <span>Dashboard</span>
+                    </NeonButton>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link to="/auth">
+                    <NeonButton size="lg" className="min-w-[200px]">
+                      <span>Get Started Free</span>
+                      <ArrowRight className="w-5 h-5" />
+                    </NeonButton>
+                  </Link>
+                  <Link to="/auth">
+                    <NeonButton variant="secondary" size="lg" className="min-w-[200px]">
+                      <span>Sign In</span>
+                    </NeonButton>
+                  </Link>
+                </>
+              )}
             </div>
           </motion.div>
 
@@ -196,10 +213,10 @@ const Index = () => {
                 <p className="text-lg text-muted-foreground max-w-xl mx-auto">
                   Join thousands of professionals already using MeetMate to build meaningful connections.
                 </p>
-                <Link to="/auth">
+                <Link to={session ? "/matches" : "/auth"}>
                   <NeonButton size="lg">
                     <Sparkles className="w-5 h-5" />
-                    <span>Start Free Trial</span>
+                    <span>{session ? "View Your Matches" : "Start Free Trial"}</span>
                     <ArrowRight className="w-5 h-5" />
                   </NeonButton>
                 </Link>
