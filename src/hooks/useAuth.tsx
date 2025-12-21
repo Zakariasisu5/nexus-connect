@@ -40,16 +40,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, fullName?: string) => {
     const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: fullName ? { full_name: fullName } : undefined,
+    try {
+      const res = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: fullName ? { full_name: fullName } : undefined,
+        }
+      });
+
+      // Log full response for debugging (network console also shows this).
+      console.debug('supabase.signUp response:', res);
+
+      // If Supabase returned an error object, return it.
+      if (res.error) {
+        console.error('SignUp error:', res.error);
+        return { error: res.error };
       }
-    });
-    return { error };
+
+      return { error: null };
+    } catch (err) {
+      console.error('Unexpected signUp exception:', err);
+      return { error: err instanceof Error ? err : new Error(String(err)) };
+    }
   };
 
   const signIn = async (email: string, password: string) => {

@@ -88,20 +88,35 @@ const Matches = () => {
 
   const handleConnect = async (matchId: string, matchedUserId: string, matchName: string) => {
     try {
+      // Mark match as pending and notify recipient; do NOT auto-create a connection
       await updateMatchStatus(matchId, 'pending');
-      toast({ title: 'Connecting...', description: `Sending request to ${matchName}.` });
-      
-      // Create actual connection
-      const success = await createConnection(matchedUserId, matchId);
-      
+      toast({ title: 'Request Sent', description: `Connection request sent to ${matchName}.` });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to send connection request.', variant: 'destructive' });
+    }
+  };
+
+  const handleAccept = async (matchId: string, otherUserId: string, otherName: string) => {
+    try {
+      // Create a connection record and mark match as accepted
+      const success = await createConnection(otherUserId, matchId);
       if (success) {
-        await updateMatchStatus(matchId, 'connected');
-        toast({ title: 'Connected!', description: `You are now connected with ${matchName}.` });
+        await updateMatchStatus(matchId, 'accepted');
+        toast({ title: 'Accepted', description: `You are now connected with ${otherName}.` });
       } else {
         toast({ title: 'Error', description: 'Failed to create connection.', variant: 'destructive' });
       }
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to send connection request.', variant: 'destructive' });
+    } catch (err) {
+      toast({ title: 'Error', description: 'Failed to accept request.', variant: 'destructive' });
+    }
+  };
+
+  const handleReject = async (matchId: string) => {
+    try {
+      await updateMatchStatus(matchId, 'rejected');
+      toast({ title: 'Rejected', description: `Connection request declined.` });
+    } catch (err) {
+      toast({ title: 'Error', description: 'Failed to reject request.', variant: 'destructive' });
     }
   };
 
@@ -358,6 +373,30 @@ const Matches = () => {
                                 }}
                               >
                                 <Calendar className="w-4 h-4" />
+                              </NeonButton>
+                            </>
+                          ) : match.is_incoming && match.status === 'pending' ? (
+                            <>
+                              <NeonButton
+                                size="sm"
+                                className="flex-1"
+                                onClick={(e) => { 
+                                  e.stopPropagation();
+                                  handleAccept(match.id, match.matched_user_id, profile.full_name || 'User');
+                                }}
+                              >
+                                <CheckCircle className="w-4 h-4" />
+                                <span>Accept</span>
+                              </NeonButton>
+                              <NeonButton
+                                size="sm"
+                                variant="secondary"
+                                onClick={(e) => { 
+                                  e.stopPropagation();
+                                  handleReject(match.id);
+                                }}
+                              >
+                                <span>Decline</span>
                               </NeonButton>
                             </>
                           ) : match.status === 'pending' ? (

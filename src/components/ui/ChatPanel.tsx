@@ -91,7 +91,7 @@ const ChatPanel = ({ isOpen, onClose, initialUserId, initialUserName }: ChatPane
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: '100%' }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="fixed inset-y-0 right-0 w-full md:w-[400px] lg:w-[450px] z-50 bg-background/95 backdrop-blur-xl border-l border-border/50 flex flex-col"
+          className="fixed inset-y-0 right-0 w-full sm:w-[360px] md:w-[420px] lg:w-[480px] z-50 bg-background/95 backdrop-blur-xl border-l border-border/50 flex flex-col max-h-screen"
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border/50">
@@ -115,10 +115,10 @@ const ChatPanel = ({ isOpen, onClose, initialUserId, initialUserName }: ChatPane
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
             {!activeConversation ? (
               // Conversations List
-              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              <div className="flex-1 overflow-y-auto p-4 space-y-2 min-h-0">
                 {loading ? (
                   <div className="flex items-center justify-center py-8">
                     <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
@@ -142,7 +142,7 @@ const ChatPanel = ({ isOpen, onClose, initialUserId, initialUserName }: ChatPane
             ) : (
               // Messages View
               <>
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
                   {Object.entries(groupedMessages).map(([date, msgs]) => (
                     <div key={date}>
                       <div className="flex items-center justify-center my-4">
@@ -164,7 +164,7 @@ const ChatPanel = ({ isOpen, onClose, initialUserId, initialUserName }: ChatPane
                 </div>
 
                 {/* Input */}
-                <div className="p-4 border-t border-border/50">
+                <div className="p-4 border-t border-border/50 bg-background/80">
                   <div className="flex gap-2">
                     <input
                       type="text"

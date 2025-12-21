@@ -65,16 +65,18 @@ export function useProfile() {
     if (!user) return { error: new Error('Not authenticated') };
 
     try {
-      const { data, error: updateError } = await supabase
+      // Use upsert to create the profile if it doesn't exist yet (insert) or update if it does.
+      const payload = { id: user.id, email: user.email, ...updates } as any;
+
+      const { data, error: upsertError } = await supabase
         .from('profiles')
-        .update(updates)
-        .eq('id', user.id)
+        .upsert(payload, { onConflict: 'id' })
         .select()
         .single();
 
-      if (updateError) throw updateError;
+      if (upsertError) throw upsertError;
 
-      setProfile(data);
+      setProfile(data as Profile);
       return { error: null };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update profile';

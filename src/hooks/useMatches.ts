@@ -23,6 +23,8 @@ export interface Match {
   shared_skills: string[] | null;
   shared_interests: string[] | null;
   status: string | null;
+  // true when this match is incoming (another user matched with current user)
+  is_incoming?: boolean;
   matched_profile?: MatchedProfile;
 }
 
@@ -44,6 +46,7 @@ export function useMatches() {
         .from('matches')
         .select(`
           id,
+          user_id,
           matched_user_id,
           match_score,
           ai_explanation,
@@ -52,16 +55,28 @@ export function useMatches() {
           shared_interests,
           status
         `)
-        .eq('user_id', session.user.id)
+        .or(`user_id.eq.${session.user.id},matched_user_id.eq.${session.user.id}`)
         .order('match_score', { ascending: false });
 
       if (dbError) throw dbError;
 
-      // Fetch profiles for matched users and deduplicate by matched_user_id
       if (data && data.length > 0) {
-        // Deduplicate: keep highest scoring match per matched_user_id
-        const uniqueMatches = new Map<string, typeof data[0]>();
-        for (const match of data) {
+        // Normalize so that `matched_user_id` refers to "the other user" for the current session
+        // and add `is_incoming` when current user is the matched_user_id (i.e., someone else requested)
+        const normalized = data.map((m: any) => {
+          if (m.matched_user_id === session.user.id) {
+            return {
+              ...m,
+              matched_user_id: m.user_id,
+              is_incoming: true,
+            };
+          }
+          return { ...m, is_incoming: false };
+        });
+
+        // Deduplicate by matched_user_id keeping highest score
+        const uniqueMatches = new Map<string, typeof normalized[0]>();
+        for (const match of normalized) {
           const existing = uniqueMatches.get(match.matched_user_id);
           if (!existing || (match.match_score || 0) > (existing.match_score || 0)) {
             uniqueMatches.set(match.matched_user_id, match);
@@ -69,11 +84,11 @@ export function useMatches() {
         }
         const deduplicatedData = Array.from(uniqueMatches.values());
 
-        const matchedUserIds = deduplicatedData.map(m => m.matched_user_id);
+        const otherUserIds = deduplicatedData.map(m => m.matched_user_id);
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id, full_name, title, company, location, avatar_url, skills, interests, bio')
-          .in('id', matchedUserIds);
+          .in('id', otherUserIds);
 
         const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
         
