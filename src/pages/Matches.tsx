@@ -20,14 +20,13 @@ import ChipTag from '@/components/ui/ChipTag';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useMatches } from '@/hooks/useMatches';
-import { supabase } from '@/integrations/supabase/client';
 
 const filters = ['All', 'High Match (90%+)', 'Connected', 'Pending'];
 
 const Matches = () => {
   const navigate = useNavigate();
   const { session, loading: authLoading } = useAuth();
-  const { matches, loading: matchesLoading, refreshMatches, updateMatchStatus } = useMatches();
+  const { matches, loading: matchesLoading, generateMatches, updateMatchStatus } = useMatches();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
@@ -62,35 +61,14 @@ const Matches = () => {
     if (!session?.user?.id) return;
     
     setIsGenerating(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('ai-match', {
-        body: { userId: session.user.id }
-      });
-      
-      if (error) {
-        // Handle rate limiting
-        if (error.message?.includes('429') || error.message?.includes('rate limit')) {
-          toast({ 
-            title: 'Service Busy', 
-            description: 'AI matching is temporarily busy. Please wait a moment and try again.', 
-            variant: 'destructive' 
-          });
-          return;
-        }
-        throw error;
-      }
-      
-      toast({ title: 'Matches Generated!', description: `Found ${data.matches?.length || 0} potential connections.` });
-      refreshMatches();
-    } catch (error: any) {
-      console.error('Error generating matches:', error);
-      const message = error.message?.includes('rate') || error.message?.includes('busy')
-        ? 'AI service is busy. Please wait a moment and try again.'
-        : 'Failed to generate matches. Please try again.';
-      toast({ title: 'Error', description: message, variant: 'destructive' });
-    } finally {
-      setIsGenerating(false);
+    const result = await generateMatches();
+    
+    if (result.success) {
+      toast({ title: 'Matches Generated!', description: `Found ${result.count} potential connections.` });
+    } else {
+      toast({ title: 'Error', description: result.error, variant: 'destructive' });
     }
+    setIsGenerating(false);
   };
 
   const handleConnect = async (matchId: string, matchName: string) => {
