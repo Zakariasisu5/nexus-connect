@@ -57,9 +57,19 @@ export function useMatches() {
 
       if (dbError) throw dbError;
 
-      // Fetch profiles for matched users
+      // Fetch profiles for matched users and deduplicate by matched_user_id
       if (data && data.length > 0) {
-        const matchedUserIds = data.map(m => m.matched_user_id);
+        // Deduplicate: keep highest scoring match per matched_user_id
+        const uniqueMatches = new Map<string, typeof data[0]>();
+        for (const match of data) {
+          const existing = uniqueMatches.get(match.matched_user_id);
+          if (!existing || (match.match_score || 0) > (existing.match_score || 0)) {
+            uniqueMatches.set(match.matched_user_id, match);
+          }
+        }
+        const deduplicatedData = Array.from(uniqueMatches.values());
+
+        const matchedUserIds = deduplicatedData.map(m => m.matched_user_id);
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id, full_name, title, company, location, avatar_url, skills, interests, bio')
@@ -67,7 +77,7 @@ export function useMatches() {
 
         const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
         
-        const matchesWithProfiles = data.map(match => ({
+        const matchesWithProfiles = deduplicatedData.map(match => ({
           ...match,
           matched_profile: profileMap.get(match.matched_user_id) as MatchedProfile | undefined
         }));
