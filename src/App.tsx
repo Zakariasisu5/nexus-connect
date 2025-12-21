@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { toast } from "@/hooks/use-toast";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ProfileSetup from "./pages/ProfileSetup";
@@ -15,29 +17,58 @@ import { AuthProvider } from "@/hooks/useAuth";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-      <div className="dark">
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/profile-setup" element={<ProfileSetup />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/matches" element={<Matches />} />
-            <Route path="/schedule" element={<Schedule />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </div>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+export default function App() {
+  useEffect(() => {
+    const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const msg =
+        (event.reason instanceof Error ? event.reason.message : String(event.reason)) ||
+        "Unexpected error";
 
-export default App;
+      // Most common user-facing issue: AI rate limiting
+      if (msg.includes("429") || msg.toLowerCase().includes("rate limit")) {
+        toast({
+          title: "Service Busy",
+          description: "AI is temporarily rate-limited. Please wait a moment and try again.",
+          variant: "destructive",
+        });
+        event.preventDefault();
+        return;
+      }
+
+      toast({
+        title: "Something went wrong",
+        description: msg,
+        variant: "destructive",
+      });
+      event.preventDefault();
+    };
+
+    window.addEventListener("unhandledrejection", onUnhandledRejection);
+    return () => window.removeEventListener("unhandledrejection", onUnhandledRejection);
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <AuthProvider>
+          <div className="dark">
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/profile-setup" element={<ProfileSetup />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/matches" element={<Matches />} />
+                <Route path="/schedule" element={<Schedule />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </div>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
