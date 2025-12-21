@@ -54,6 +54,12 @@ export function useMatches() {
       const data = await response.json();
 
       if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error('AI service is busy. Please wait a moment and try again.');
+        }
+        if (response.status === 402) {
+          throw new Error('AI credits depleted. Please try again later.');
+        }
         throw new Error(data.error || 'Failed to fetch matches');
       }
 

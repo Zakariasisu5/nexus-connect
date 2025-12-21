@@ -67,13 +67,27 @@ const Matches = () => {
         body: { userId: session.user.id }
       });
       
-      if (error) throw error;
+      if (error) {
+        // Handle rate limiting
+        if (error.message?.includes('429') || error.message?.includes('rate limit')) {
+          toast({ 
+            title: 'Service Busy', 
+            description: 'AI matching is temporarily busy. Please wait a moment and try again.', 
+            variant: 'destructive' 
+          });
+          return;
+        }
+        throw error;
+      }
       
       toast({ title: 'Matches Generated!', description: `Found ${data.matches?.length || 0} potential connections.` });
       refreshMatches();
     } catch (error: any) {
       console.error('Error generating matches:', error);
-      toast({ title: 'Error', description: 'Failed to generate matches. Please try again.', variant: 'destructive' });
+      const message = error.message?.includes('rate') || error.message?.includes('busy')
+        ? 'AI service is busy. Please wait a moment and try again.'
+        : 'Failed to generate matches. Please try again.';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
     } finally {
       setIsGenerating(false);
     }
