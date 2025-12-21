@@ -32,12 +32,63 @@ export function useMatches() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchMatches = useCallback(async () => {
-    if (!session) return;
+  // Load existing matches from database (no AI call)
+  const loadMatches = useCallback(async () => {
+    if (!session?.user?.id) return;
     
     setLoading(true);
     setError(null);
 
+    try {
+      const { data, error: dbError } = await supabase
+        .from('matches')
+        .select(`
+          id,
+          matched_user_id,
+          match_score,
+          ai_explanation,
+          confidence_score,
+          shared_skills,
+          shared_interests,
+          status
+        `)
+        .eq('user_id', session.user.id)
+        .order('match_score', { ascending: false });
+
+      if (dbError) throw dbError;
+
+      // Fetch profiles for matched users
+      if (data && data.length > 0) {
+        const matchedUserIds = data.map(m => m.matched_user_id);
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, title, company, location, avatar_url, skills, interests, bio')
+          .in('id', matchedUserIds);
+
+        const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+        
+        const matchesWithProfiles = data.map(match => ({
+          ...match,
+          matched_profile: profileMap.get(match.matched_user_id) as MatchedProfile | undefined
+        }));
+
+        setMatches(matchesWithProfiles);
+      } else {
+        setMatches([]);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load matches';
+      setError(message);
+      console.error('Error loading matches:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [session?.user?.id]);
+
+  // Generate new matches using AI (only called explicitly)
+  const generateMatches = useCallback(async () => {
+    if (!session) return { success: false, error: 'Not authenticated' };
+    
     try {
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-match`,
@@ -55,23 +106,23 @@ export function useMatches() {
 
       if (!response.ok) {
         if (response.status === 429) {
-          throw new Error('AI service is busy. Please wait a moment and try again.');
+          return { success: false, error: 'AI service is busy. Please wait a moment and try again.' };
         }
         if (response.status === 402) {
-          throw new Error('AI credits depleted. Please try again later.');
+          return { success: false, error: 'AI credits depleted. Please try again later.' };
         }
-        throw new Error(data.error || 'Failed to fetch matches');
+        return { success: false, error: data.error || 'Failed to generate matches' };
       }
 
-      setMatches(data.matches || []);
+      // Reload matches from database after generation
+      await loadMatches();
+      return { success: true, count: data.matches?.length || 0 };
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch matches';
-      setError(message);
-      console.error('Error fetching matches:', err);
-    } finally {
-      setLoading(false);
+      const message = err instanceof Error ? err.message : 'Failed to generate matches';
+      console.error('Error generating matches:', err);
+      return { success: false, error: message };
     }
-  }, [session]);
+  }, [session, loadMatches]);
 
   const updateMatchStatus = async (matchId: string, status: string) => {
     if (!session) return;
@@ -91,7 +142,12 @@ export function useMatches() {
     );
   };
 
-  const refreshMatches = fetchMatches;
+  // Load matches on mount
+  useEffect(() => {
+    if (session?.user?.id) {
+      loadMatches();
+    }
+  }, [session?.user?.id, loadMatches]);
 
   // Subscribe to realtime updates
   useEffect(() => {
@@ -107,9 +163,8 @@ export function useMatches() {
           table: 'matches',
           filter: `user_id=eq.${session.user.id}`,
         },
-        (payload) => {
-          console.log('Match update:', payload);
-          fetchMatches();
+        () => {
+          loadMatches();
         }
       )
       .subscribe();
@@ -117,7 +172,7 @@ export function useMatches() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [session?.user?.id, fetchMatches]);
+  }, [session?.user?.id, loadMatches]);
 
-  return { matches, loading, error, fetchMatches, updateMatchStatus, refreshMatches };
+  return { matches, loading, error, loadMatches, generateMatches, updateMatchStatus, refreshMatches: loadMatches };
 }
