@@ -10,7 +10,8 @@ import {
   Sparkles,
   Menu,
   X,
-  QrCode
+  QrCode,
+  MessageCircle
 } from 'lucide-react';
 import AnimatedBackground from './ui/AnimatedBackground';
 import AIChatbot from './ui/AIChatbot';
@@ -25,6 +26,7 @@ interface LayoutProps {
 const navItems = [
   { path: '/', label: 'Home', icon: Home },
   { path: '/matches', label: 'Matches', icon: Users },
+  { path: '/messages', label: 'Messages', icon: MessageCircle },
   { path: '/schedule', label: 'Schedule', icon: Calendar },
   { path: '/dashboard', label: 'Dashboard', icon: BarChart3 },
   { path: '/profile', label: 'Profile', icon: User },

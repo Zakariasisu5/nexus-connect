@@ -14,7 +14,7 @@ interface ChatPanelProps {
   onOpen?: () => void;
 }
 
-const ChatPanel = ({ isOpen, onClose, initialUserId, initialUserName }: ChatPanelProps) => {
+const ChatPanel = ({ isOpen, onClose, initialUserId, initialUserName, onOpen }: ChatPanelProps) => {
   const { session } = useAuth();
   const {
     conversations,
