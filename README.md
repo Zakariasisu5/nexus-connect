@@ -15,7 +15,7 @@ MeetMate is an AI-powered networking platform designed to make professional conn
 
 💬 Real-time Chat – Stay in touch with your network directly within the platform.
 
-🌐 Web3 Ready (Optional) – Future-ready integrations for identity and secure interactions.
+🌐 Web3 Ready – Future-ready integrations for identity and secure interactions.
 
 
 🚀 Getting Started
