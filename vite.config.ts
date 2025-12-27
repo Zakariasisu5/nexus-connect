@@ -9,7 +9,15 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  // Keep the componentTagger disabled by default in development to avoid slowing dev startup.
+  // Enable it by setting LOVABLE_TAGGER=true in your environment if you need it.
+  plugins: [
+    react(),
+    mode === "development" && process.env.LOVABLE_TAGGER === 'true' && componentTagger(),
+  ].filter(Boolean),
+  optimizeDeps: {
+    include: ['framer-motion', 'lucide-react', '@supabase/supabase-js'],
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

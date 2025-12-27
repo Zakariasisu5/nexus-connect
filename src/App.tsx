@@ -5,15 +5,17 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import ProfileSetup from "./pages/ProfileSetup";
-import Profile from "./pages/Profile";
-import Matches from "./pages/Matches";
-import Messages from "./pages/Messages";
-import Schedule from "./pages/Schedule";
-import Dashboard from "./pages/Dashboard";
-import NotFound from "./pages/NotFound";
+import React, { Suspense, lazy } from "react";
+
+const Index = lazy(() => import("./pages/Index"));
+const Auth = lazy(() => import("./pages/Auth"));
+const ProfileSetup = lazy(() => import("./pages/ProfileSetup"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Matches = lazy(() => import("./pages/Matches"));
+const Messages = lazy(() => import("./pages/Messages"));
+const Schedule = lazy(() => import("./pages/Schedule"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 import { AuthProvider } from "@/hooks/useAuth";
 import { useMessageNotifications } from "@/hooks/useMessageNotifications";
 import { useTheme } from "@/hooks/useTheme";
@@ -70,17 +72,19 @@ export default function App() {
               <Toaster />
               <Sonner />
               <BrowserRouter>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/profile-setup" element={<ProfileSetup />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/matches" element={<Matches />} />
-                  <Route path="/messages" element={<Messages />} />
-                  <Route path="/schedule" element={<Schedule />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
+                <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/profile-setup" element={<ProfileSetup />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/matches" element={<Matches />} />
+                    <Route path="/messages" element={<Messages />} />
+                    <Route path="/schedule" element={<Schedule />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
               </BrowserRouter>
             </div>
           </NotificationProvider>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar as CalendarIcon, 
@@ -18,6 +18,8 @@ import {
 import Layout from '@/components/Layout';
 import GlassCard from '@/components/ui/GlassCard';
 import NeonButton from '@/components/ui/NeonButton';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 interface Meeting {
@@ -33,44 +35,7 @@ interface Meeting {
   status: 'scheduled' | 'completed' | 'cancelled';
 }
 
-const mockMeetings: Meeting[] = [
-  {
-    id: '1',
-    title: 'Coffee Chat',
-    type: 'coffee',
-    date: '2024-01-15',
-    time: '10:00',
-    duration: 30,
-    location: 'Conference Center Cafe',
-    attendee: 'Anna Chen',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&fit=crop&crop=face',
-    status: 'scheduled',
-  },
-  {
-    id: '2',
-    title: 'Video Call',
-    type: 'video',
-    date: '2024-01-15',
-    time: '14:00',
-    duration: 45,
-    location: 'Zoom',
-    attendee: 'Marcus Rodriguez',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face',
-    status: 'scheduled',
-  },
-  {
-    id: '3',
-    title: 'Networking Lunch',
-    type: 'in-person',
-    date: '2024-01-16',
-    time: '12:00',
-    duration: 60,
-    location: 'Downtown Restaurant',
-    attendee: 'Sarah Kim',
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&crop=face',
-    status: 'scheduled',
-  },
-];
+// Meetings will be loaded from the backend (Supabase). Keep client-side Meeting shape.
 
 const meetingTypes = [
   { id: 'coffee', label: 'Coffee Chat', icon: Coffee, color: 'text-orange-500' },
@@ -85,8 +50,11 @@ const timeSlots = [
 
 const Schedule = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [meetings, setMeetings] = useState<Meeting[]>(mockMeetings);
+  const { session } = useAuth();
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [showNewMeeting, setShowNewMeeting] = useState(false);
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [selectedAttendeeId, setSelectedAttendeeId] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string>('coffee');
 
@@ -122,6 +90,95 @@ const Schedule = () => {
     return meetings.filter((m) => m.date === dateStr);
   };
 
+  // Fetch meetings from Supabase for the current user
+  const fetchMeetings = async () => {
+    if (!session?.user?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('meetings')
+        .select(`id, title, meeting_type, scheduled_at, duration_minutes, location, status, organizer_id, attendee_id, organizer:organizer_id (full_name, avatar_url), attendee:attendee_id (full_name, avatar_url)`)
+        .or(`organizer_id.eq.${session.user.id},attendee_id.eq.${session.user.id}`)
+        .gte('scheduled_at', new Date().toISOString())
+        .order('scheduled_at', { ascending: true });
+
+      if (error) throw error;
+
+      const mapped = (data || []).map((m: any) => {
+        const scheduled = m.scheduled_at ? new Date(m.scheduled_at) : new Date();
+        const isOrganizer = session.user.id === m.organizer_id;
+        const other = isOrganizer ? m.attendee : m.organizer;
+        return {
+          id: m.id,
+          title: m.title,
+          type: (m.meeting_type || 'video') as Meeting['type'],
+          date: scheduled.toISOString().split('T')[0],
+          time: scheduled.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          duration: m.duration_minutes || 30,
+          location: m.location || '',
+          attendee: other?.full_name || (isOrganizer ? 'You' : 'Unknown'),
+          avatar: other?.avatar_url || '',
+          status: m.status || 'scheduled',
+        } as Meeting;
+      });
+
+      setMeetings(mapped);
+    } catch (err) {
+      console.error('Error fetching meetings:', err);
+    }
+  };
+
+  // Subscribe to realtime updates for meetings involving the current user
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    fetchMeetings();
+
+    // Fetch profiles for attendee selection (exclude current user)
+    const fetchProfiles = async () => {
+      try {
+        const { data, error } = await supabase.from('profiles').select('id, full_name, avatar_url, company').neq('id', session.user.id).limit(50);
+        if (error) throw error;
+        setProfiles(data || []);
+        if ((data || []).length > 0 && !selectedAttendeeId) {
+          setSelectedAttendeeId(data[0].id);
+        }
+      } catch (err) {
+        console.error('Error fetching profiles:', err);
+      }
+    };
+
+    fetchProfiles();
+
+    const userId = session.user.id;
+
+    const organizerChannel = supabase
+      .channel(`user-meetings-organizer-${userId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'meetings', filter: `organizer_id=eq.${userId}` },
+        (payload) => {
+          fetchMeetings();
+        }
+      )
+      .subscribe();
+
+    const attendeeChannel = supabase
+      .channel(`user-meetings-attendee-${userId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'meetings', filter: `attendee_id=eq.${userId}` },
+        (payload) => {
+          fetchMeetings();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(organizerChannel);
+      supabase.removeChannel(attendeeChannel);
+    };
+  }, [session?.user?.id]);
+
   const isToday = (date: Date) => {
     const today = new Date();
     return date.toDateString() === today.toDateString();
@@ -149,29 +206,52 @@ const Schedule = () => {
     return found ? found.color : 'text-muted-foreground';
   };
 
-  const handleScheduleMeeting = () => {
+  const handleScheduleMeeting = async () => {
     if (!selectedSlot) {
       toast({ title: 'Error', description: 'Please select a time slot', variant: 'destructive' });
       return;
     }
 
-    const newMeeting: Meeting = {
-      id: Date.now().toString(),
-      title: `${meetingTypes.find((t) => t.id === selectedType)?.label || 'Meeting'}`,
-      type: selectedType as Meeting['type'],
-      date: selectedDate.toISOString().split('T')[0],
-      time: selectedSlot,
-      duration: 30,
-      location: selectedType === 'video' ? 'Zoom' : 'Conference Center',
-      attendee: 'New Contact',
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&h=80&fit=crop&crop=face',
-      status: 'scheduled',
-    };
+    if (!session?.user?.id) {
+      toast({ title: 'Error', description: 'You must be signed in to schedule a meeting', variant: 'destructive' });
+      return;
+    }
 
-    setMeetings((prev) => [...prev, newMeeting]);
-    setShowNewMeeting(false);
-    setSelectedSlot(null);
-    toast({ title: 'Meeting Scheduled', description: 'Your meeting has been added to the calendar.' });
+    if (!selectedAttendeeId) {
+      toast({ title: 'Error', description: 'Please select an attendee', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      // NOTE: current UI does not include attendee selection. For now, create meeting with the
+      // current user as both organizer and attendee. Replace `attendee_id` with a real user id
+      // after integrating contact selection.
+      const scheduledAt = new Date(selectedDate);
+      const [hours, minutes] = selectedSlot.split(':').map(Number);
+      scheduledAt.setHours(hours, minutes, 0, 0);
+
+      const payload = {
+        action: 'create',
+        attendee_id: selectedAttendeeId,
+        title: meetingTypes.find((t) => t.id === selectedType)?.label || 'Meeting',
+        meeting_type: selectedType,
+        scheduled_at: scheduledAt.toISOString(),
+        duration_minutes: 30,
+        location: selectedType === 'video' ? 'Zoom' : 'Conference Center',
+      };
+
+      const { data, error } = await supabase.functions.invoke('schedule-meeting', { body: payload });
+      if (error) throw error;
+
+      // The function returns the created meeting; refresh list
+      await fetchMeetings();
+      setShowNewMeeting(false);
+      setSelectedSlot(null);
+      toast({ title: 'Meeting Scheduled', description: 'Your meeting has been added to the calendar.' });
+    } catch (err) {
+      console.error('Error scheduling meeting:', err);
+      toast({ title: 'Error', description: 'Failed to schedule meeting', variant: 'destructive' });
+    }
   };
 
   const days = getDaysInMonth(selectedDate);
@@ -254,13 +334,16 @@ const Schedule = () => {
                   return (
                     <motion.button
                       key={index}
+                      type="button"
+                      tabIndex={0}
+                      aria-pressed={isSelected(day.date)}
                       className={`
                         min-h-[80px] p-2 rounded-xl border text-left transition-all
                         ${day.currentMonth ? 'text-foreground' : 'text-muted-foreground/50'}
                         ${isToday(day.date) ? 'border-primary bg-primary/10' : 'border-transparent hover:border-border hover:bg-muted/30'}
                         ${isSelected(day.date) ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}
                       `}
-                      onClick={() => setSelectedDate(day.date)}
+                      onClick={(e) => { setSelectedDate(day.date); (e.currentTarget as HTMLElement).focus(); }}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
@@ -396,7 +479,23 @@ const Schedule = () => {
                     </motion.button>
                   </div>
 
-                  <div className="space-y-6">
+                    <div className="space-y-6">
+                    {/* Attendee selection */}
+                    <div>
+                      <label className="block text-sm font-medium mb-3">Attendee</label>
+                      <div>
+                        <select
+                          value={selectedAttendeeId ?? ''}
+                          onChange={(e) => setSelectedAttendeeId(e.target.value)}
+                          className="neon-input w-full"
+                        >
+                          {profiles.length === 0 && <option value="">No contacts available</option>}
+                          {profiles.map((p) => (
+                            <option key={p.id} value={p.id}>{p.full_name || p.email || p.id}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
                     {/* Meeting Type */}
                     <div>
                       <label className="block text-sm font-medium mb-3">Meeting Type</label>
@@ -404,6 +503,9 @@ const Schedule = () => {
                         {meetingTypes.map((type) => (
                           <motion.button
                             key={type.id}
+                            type="button"
+                            tabIndex={0}
+                            aria-pressed={selectedType === type.id}
                             className={`
                               flex items-center gap-2 p-3 rounded-xl border transition-all
                               ${selectedType === type.id 
@@ -411,7 +513,7 @@ const Schedule = () => {
                                 : 'border-border hover:border-primary/50 hover:bg-muted/30'
                               }
                             `}
-                            onClick={() => setSelectedType(type.id)}
+                            onClick={(e) => { setSelectedType(type.id); (e.currentTarget as HTMLElement).focus(); }}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             animate={selectedType === type.id ? { 
@@ -433,6 +535,9 @@ const Schedule = () => {
                         {timeSlots.map((slot) => (
                           <motion.button
                             key={slot}
+                            type="button"
+                            tabIndex={0}
+                            aria-pressed={selectedSlot === slot}
                             className={`
                               p-2 rounded-xl text-sm font-medium transition-all
                               ${selectedSlot === slot 
@@ -440,7 +545,7 @@ const Schedule = () => {
                                 : 'bg-muted/30 hover:bg-muted/50 text-foreground'
                               }
                             `}
-                            onClick={() => setSelectedSlot(slot)}
+                            onClick={(e) => { setSelectedSlot(slot); (e.currentTarget as HTMLElement).focus(); }}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             animate={selectedSlot === slot ? {

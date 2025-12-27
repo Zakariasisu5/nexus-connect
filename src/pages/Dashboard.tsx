@@ -60,6 +60,40 @@ const Dashboard = () => {
     }
   }, [session?.user?.id]);
 
+  // Subscribe to realtime updates for meetings so dashboard updates live
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    const userId = session.user.id;
+
+    const organizerChannel = supabase
+      .channel(`dashboard-meetings-organizer-${userId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'meetings', filter: `organizer_id=eq.${userId}` },
+        (payload) => {
+          fetchMeetings();
+        }
+      )
+      .subscribe();
+
+    const attendeeChannel = supabase
+      .channel(`dashboard-meetings-attendee-${userId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'meetings', filter: `attendee_id=eq.${userId}` },
+        (payload) => {
+          fetchMeetings();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(organizerChannel);
+      supabase.removeChannel(attendeeChannel);
+    };
+  }, [session?.user?.id]);
+
   const fetchAnalytics = async () => {
     if (!session?.user?.id) return;
     

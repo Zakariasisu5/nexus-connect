@@ -4,13 +4,9 @@ type Theme = 'dark' | 'light';
 
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>(() => {
-    // Check localStorage first
+    // Check localStorage first; default to 'dark' when no preference stored
     const stored = localStorage.getItem('theme') as Theme | null;
     if (stored) return stored;
-    // Check system preference
-    if (window.matchMedia('(prefers-color-scheme: light)').matches) {
-      return 'light';
-    }
     return 'dark';
   });
 

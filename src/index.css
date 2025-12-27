@@ -402,6 +402,100 @@
   }
 }
 
+/* Global color & accessibility overrides: ensure readable text and consistent buttons
+   - Body text uses `--foreground` for readable contrast on both themes
+   - Buttons use `--primary` for their background and `--primary-foreground` for text
+   - Provide accessible focus outlines and responsive sizing so buttons fit on mobile
+*/
+@layer utilities {
+  :root {
+    --app-main-color: var(--primary);
+    --app-main-foreground: var(--primary-foreground);
+  }
+
+  /* Base text color: use the theme foreground for best contrast */
+  body {
+    color: hsl(var(--foreground)) !important;
+  }
+
+  /* Buttons: consistent primary color, responsive sizing, and accessible focus */
+  button, .neon-button, .neon-button-secondary, .neon-button-blue, .neon-button-multi, .btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.5rem !important;
+    min-height: 2rem !important;
+    padding: 0.375rem 0.75rem !important; /* mobile-friendly */
+    font-size: 0.875rem !important;
+    border-radius: 0.5rem !important;
+    background: hsl(var(--app-main-color)) !important;
+    color: hsl(var(--app-main-foreground)) !important;
+    background-image: none !important;
+    box-shadow: 0 2px 6px hsl(var(--app-main-color) / 0.18) !important;
+    border: 1px solid transparent !important;
+    text-decoration: none !important;
+    transition: transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease !important;
+  }
+
+  /* Active state (mouse/tap) */
+  button:active, .neon-button:active, .btn:active {
+    transform: translateY(1px) !important;
+    box-shadow: 0 1px 4px hsl(var(--app-main-color) / 0.14) !important;
+    opacity: 0.98 !important;
+  }
+
+  /* Focus-visible for keyboard navigation */
+  button:focus-visible, .neon-button:focus-visible, .btn:focus-visible {
+    outline: none !important;
+    box-shadow: 0 0 0 4px hsl(var(--app-main-color) / 0.22) !important;
+    transform: translateY(-1px) !important;
+  }
+
+  /* Larger screens: slightly bigger buttons */
+  @media (min-width: 768px) {
+    button, .neon-button, .neon-button-secondary, .neon-button-blue, .neon-button-multi, .btn {
+      padding: 0.5rem 1rem !important;
+      min-height: 2.5rem !important;
+      font-size: 1rem !important;
+    }
+  }
+
+  /* Links and gradient headings should fall back to primary color (no multi-color) */
+  a, .link, .gradient-text {
+    background: none !important;
+    -webkit-background-clip: unset !important;
+    background-clip: unset !important;
+    -webkit-text-fill-color: unset !important;
+    color: hsl(var(--app-main-color)) !important;
+  }
+
+  /* Chip tags: subtle primary accent on hover/active while preserving legibility */
+  .chip-tag:hover, .chip-tag.active {
+    background: hsl(var(--app-main-color) / 0.12) !important;
+    border-color: hsl(var(--app-main-color) / 0.35) !important;
+    color: hsl(var(--app-main-color)) !important;
+  }
+
+  /* Persist hover-like appearance when an element is selected (aria-pressed)
+     This keeps the visual hover/pressed state after clicking/selecting. */
+  button[aria-pressed="true"],
+  .neon-button[aria-pressed="true"],
+  .btn[aria-pressed="true"],
+  .chip-tag[aria-pressed="true"] {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 8px 30px hsl(var(--app-main-color) / 0.28) !important;
+    background: hsl(var(--app-main-color)) !important;
+    color: hsl(var(--app-main-foreground)) !important;
+    opacity: 1 !important;
+  }
+
+  /* For elements that used muted backgrounds when unselected, give a subtle tint when selected */
+  [aria-pressed="true"].bg-muted\/30, [aria-pressed="true"].bg-muted\/50 {
+    background: hsl(var(--app-main-color) / 0.12) !important;
+    color: hsl(var(--app-main-color)) !important;
+  }
+}
+
 @keyframes slide-up {
   from {
     opacity: 0;
