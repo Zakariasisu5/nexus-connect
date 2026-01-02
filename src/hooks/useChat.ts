@@ -111,6 +111,18 @@ export function useChat() {
     if (!session?.user?.id) return;
 
     try {
+      // First verify the user has access to this conversation
+      const { data: convData } = await supabase
+        .from('chat_conversations')
+        .select('id')
+        .eq('id', conversationId)
+        .single();
+
+      if (!convData) {
+        console.error('Conversation not found or access denied');
+        return;
+      }
+
       const { data, error } = await supabase
         .from('chat_messages')
         .select('*')
