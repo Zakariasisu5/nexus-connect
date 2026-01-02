@@ -1,16 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Send, MessageCircle, Search, ArrowLeft } from 'lucide-react';
 import Layout from '@/components/Layout';
 import GlassCard from '@/components/ui/GlassCard';
 import NeonButton from '@/components/ui/NeonButton';
 import { useChat, Conversation, ChatMessage } from '@/hooks/useChat';
 import { useAuth } from '@/hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const Messages = () => {
   const { session } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const userIdFromUrl = searchParams.get('user');
+  
   const {
     conversations,
     activeConversation,
@@ -18,12 +21,14 @@ const Messages = () => {
     loading,
     setActiveConversation,
     sendMessage,
+    startConversation,
     loadConversations,
   } = useChat();
 
   const [inputValue, setInputValue] = useState('');
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [initializing, setInitializing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -31,6 +36,25 @@ const Messages = () => {
       navigate('/auth');
     }
   }, [session, navigate]);
+
+  // Handle opening conversation with a specific user from URL
+  useEffect(() => {
+    const initConversation = async () => {
+      if (userIdFromUrl && session?.user?.id && !initializing && !loading) {
+        // Don't start conversation with yourself
+        if (userIdFromUrl === session.user.id) return;
+        
+        setInitializing(true);
+        const convId = await startConversation(userIdFromUrl);
+        if (convId) {
+          // Remove the user param from URL to prevent re-initialization
+          navigate('/messages', { replace: true });
+        }
+        setInitializing(false);
+      }
+    };
+    initConversation();
+  }, [userIdFromUrl, session?.user?.id, loading, initializing, startConversation, navigate]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
