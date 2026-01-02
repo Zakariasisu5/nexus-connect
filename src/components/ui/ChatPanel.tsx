@@ -4,6 +4,7 @@ import { X, Send, ArrowLeft, MessageCircle } from 'lucide-react';
 import { useChat, Conversation } from '@/hooks/useChat';
 import { useAuth } from '@/hooks/useAuth';
 import GlassCard from './GlassCard';
+import NeonButton from './NeonButton';
 
 interface ChatPanelProps {
   isOpen: boolean;
@@ -155,11 +156,11 @@ const ChatPanel = ({ isOpen, onClose, initialUserId, initialUserName, onOpen }: 
             ) : (
               // Messages View
               <>
-                <div className="flex-1 overflow-y-auto p-4 space-y-2 min-h-0">
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
                   {Object.entries(groupedMessages).map(([date, msgs]) => (
                     <div key={date}>
                       <div className="flex items-center justify-center my-4">
-                        <span className="date-separator">
+                        <span className="text-xs text-muted-foreground bg-muted px-3 py-1 rounded-full">
                           {date}
                         </span>
                       </div>
@@ -177,24 +178,25 @@ const ChatPanel = ({ isOpen, onClose, initialUserId, initialUserName, onOpen }: 
                 </div>
 
                 {/* Input */}
-                <div className="p-4 border-t border-border/50 bg-card/80 backdrop-blur-sm">
-                  <div className="flex gap-3 items-center">
+                <div className="p-4 border-t border-border/50 bg-background/80">
+                  <div className="flex gap-2">
                     <input
                       type="text"
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
                       onKeyPress={handleKeyPress}
                       placeholder="Type a message..."
-                      className="flex-1 chat-input"
+                      className="flex-1 px-4 py-3 rounded-xl bg-muted border border-border/50 focus:border-primary/50 focus:outline-none transition-colors"
                       disabled={sending}
                     />
-                    <button
+                    <NeonButton
                       onClick={handleSend}
                       disabled={!inputValue.trim() || sending}
-                      className="flex-shrink-0 w-11 h-11 rounded-xl bg-primary text-primary-foreground flex items-center justify-center hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/25"
+                      size="sm"
+                      className="px-4"
                     >
-                      <Send className="w-5 h-5" />
-                    </button>
+                      <Send className="w-4 h-4" />
+                    </NeonButton>
                   </div>
                 </div>
               </>
@@ -255,18 +257,19 @@ const MessageBubble = ({
   time: string;
 }) => (
   <motion.div
-    initial={{ opacity: 0, y: 8, scale: 0.98 }}
-    animate={{ opacity: 1, y: 0, scale: 1 }}
-    transition={{ duration: 0.2 }}
-    className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-3`}
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-2`}
   >
     <div
-      className={`max-w-[75%] px-4 py-3 ${
-        isOwn ? 'message-bubble-own' : 'message-bubble-other'
+      className={`max-w-[75%] px-4 py-2.5 rounded-2xl ${
+        isOwn
+          ? 'bg-primary text-primary-foreground rounded-br-md'
+          : 'bg-muted text-foreground rounded-bl-md'
       }`}
     >
-      <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
-      <p className={`text-[10px] mt-1.5 ${isOwn ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
+      <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+      <p className={`text-xs mt-1 ${isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
         {time}
       </p>
     </div>
