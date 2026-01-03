@@ -20,26 +20,26 @@ import Conference from ".././assets/techconnect.png"
 const features = [
   {
     icon: Users,
-    title: 'AI-Powered Matching',
-    description: 'Smart algorithms find your perfect connections based on shared interests and goals.',
+    title: 'Smart Attendee Matching',
+    description: 'Connect with the right people automatically based on shared interests, goals, and expertise.',
     gradient: 'from-primary to-primary/60',
   },
   {
     icon: QrCode,
-    title: 'Instant QR Connect',
-    description: 'Scan QR codes to instantly connect and share profiles at conferences.',
+    title: 'QR Code Check-In',
+    description: 'Fast, contactless check-in and instant profile sharing with a simple scan.',
     gradient: 'from-accent to-accent/60',
   },
   {
     icon: Calendar,
-    title: 'Smart Scheduling',
-    description: 'Book meetings effortlessly with integrated calendar and availability sync.',
+    title: 'Event Scheduling',
+    description: 'Effortlessly manage sessions, meetings, and appointments with built-in calendar sync.',
     gradient: 'from-secondary to-secondary/60',
   },
   {
     icon: BarChart3,
-    title: 'Engagement Analytics',
-    description: 'Track your networking success with detailed insights and metrics.',
+    title: 'Attendance Analytics',
+    description: 'Real-time insights into attendee engagement, check-ins, and event performance.',
     gradient: 'from-primary to-accent',
   },
 ];
@@ -70,17 +70,17 @@ const Index = () => {
           >
            
               
-              <span className=''>AI-Powered Conference Networking</span>
+              <span className=''>Event & Conference Management Made Simple</span>
 
             <h3 className="text-5xl md:text-7xl font-bold leading-tight">
-              <span className="text-foreground">Turn Passive Networking into</span>
+              <span className="text-foreground">Seamless Events,</span>
               <br />
               <span className="text-foreground">Meaningful Connections</span>
             </h3>
 
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              MeetMate uses AI to match you with the right people at conferences. 
-              Scan, connect, and build relationships that matter.
+              MeetMate streamlines event management with smart check-ins, real-time attendance tracking, 
+              and effortless attendee networking—all in one platform.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -161,11 +161,11 @@ const Index = () => {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
               <figcaption className="absolute left-4 bottom-4 text-left text-white">
-                <h4 className="text-lg font-bold">Networking Night</h4>
-                <p className="text-sm text-white/90">Meet like-minded professionals and grow your network.</p>
+                <h4 className="text-lg font-bold">Corporate Events</h4>
+                <p className="text-sm text-white/90">Streamline check-ins and connect attendees effortlessly.</p>
                 <div className="mt-3">
                   <Link to="/matches">
-                    <NeonButton size="sm" className="bg-white/10">See Matches</NeonButton>
+                    <NeonButton size="sm" className="bg-white/10">View Attendees</NeonButton>
                   </Link>
                 </div>
               </figcaption>
@@ -180,8 +180,8 @@ const Index = () => {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
               <figcaption className="absolute left-4 bottom-4 text-left text-white">
-                <h4 className="text-lg font-bold">Tech Connect 2025</h4>
-                <p className="text-sm text-white/90">Real-time matches and on-site scheduling made easy.</p>
+                <h4 className="text-lg font-bold">Industry Conferences</h4>
+                <p className="text-sm text-white/90">Real-time attendance tracking and seamless scheduling.</p>
                 <div className="mt-3">
                   <Link to="/auth">
                     <NeonButton size="sm" className="bg-white/10">Get Started</NeonButton>
@@ -201,10 +201,10 @@ const Index = () => {
             viewport={{ once: true }}
           >
             <h2 className="text-3xl md:text-4xl font-bold">
-              <span className="">Everything You Need</span> to Network Smarter
+              <span className="">Everything You Need</span> to Run Better Events
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              From AI matching to real-time notifications, we've got you covered.
+              From check-in to follow-up, manage every aspect of your event with confidence.
             </p>
           </motion.div>
 
@@ -253,10 +253,10 @@ const Index = () => {
               />
               <div className="relative z-10 space-y-6">
                 <h2 className="text-3xl md:text-4xl font-bold">
-                  Ready to Transform Your Networking?
+                  Ready to Elevate Your Events?
                 </h2>
                 <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-                  Join thousands of professionals already using MeetMate to build meaningful connections.
+                  Join thousands of organizers who trust MeetMate to deliver exceptional event experiences.
                 </p>
                 <Link to={session ? "/matches" : "/auth"}>
                   <NeonButton size="lg">
