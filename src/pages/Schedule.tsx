@@ -267,9 +267,9 @@ const Schedule = () => {
         >
           <div className="space-y-2">
             <h1 className="text-4xl font-bold">
-              <span className="">Meeting Scheduler</span> 
+              <span className="">Event Scheduler</span> 
             </h1>
-            <p className="text-muted-foreground">Schedule and manage your conference meetings</p>
+            <p className="text-muted-foreground">Plan and manage meetings, sessions, and appointments</p>
           </div>
           <NeonButton onClick={() => setShowNewMeeting(true)}>
             <Plus className="w-5 h-5" />

@@ -247,9 +247,9 @@ const Dashboard = () => {
         >
           <div className="space-y-2">
             <h1 className="text-4xl font-bold">
-              <span className="">Analytics Dashboard</span> 
+              <span className="">Event Analytics</span> 
             </h1>
-            <p className="text-muted-foreground">Track your networking success</p>
+            <p className="text-muted-foreground">Monitor attendance, engagement, and event performance</p>
           </div>
           <div className="flex items-center gap-3">
             <select

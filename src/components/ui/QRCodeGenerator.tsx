@@ -70,8 +70,8 @@ const QRCodeGenerator = ({ profileId, name, onClose }: QRCodeGeneratorProps) => 
       className="text-center space-y-6"
     >
       <div className="space-y-2">
-        <h3 className="text-2xl font-bold gradient-text">Your Profile QR</h3>
-        <p className="text-muted-foreground">Scan to connect instantly</p>
+        <h3 className="text-2xl font-bold gradient-text">Your Check-In QR Code</h3>
+        <p className="text-muted-foreground">Share for instant check-in and connection</p>
       </div>
 
       <motion.div
@@ -121,7 +121,7 @@ const QRCodeGenerator = ({ profileId, name, onClose }: QRCodeGeneratorProps) => 
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Show this QR code to connect with other attendees
+        Present this code at registration or share with fellow attendees
       </p>
     </motion.div>
   );

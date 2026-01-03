@@ -90,8 +90,8 @@ const QRCodeScanner = ({ onScan, onClose }: QRCodeScannerProps) => {
       className="space-y-6"
     >
       <div className="text-center space-y-2">
-        <h3 className="text-2xl font-bold gradient-text">Scan QR Code</h3>
-        <p className="text-muted-foreground">Point camera at a profile QR code</p>
+        <h3 className="text-2xl font-bold gradient-text">Scan Attendee QR</h3>
+        <p className="text-muted-foreground">Point your camera at an attendee's QR code to check in or connect</p>
       </div>
 
       <div
