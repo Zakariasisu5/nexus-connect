@@ -21,6 +21,7 @@ import NeonButton from '@/components/ui/NeonButton';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 interface Meeting {
   id: string;
@@ -51,6 +52,7 @@ const timeSlots = [
 const Schedule = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const { session } = useAuth();
+  const { trackEvent, trackPageView } = useAnalytics();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [showNewMeeting, setShowNewMeeting] = useState(false);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -94,19 +96,42 @@ const Schedule = () => {
   const fetchMeetings = async () => {
     if (!session?.user?.id) return;
     try {
-      const { data, error } = await supabase
+      // Fetch meetings first
+      const { data: meetingsData, error: meetingsError } = await supabase
         .from('meetings')
-        .select(`id, title, meeting_type, scheduled_at, duration_minutes, location, status, organizer_id, attendee_id, organizer:organizer_id (full_name, avatar_url), attendee:attendee_id (full_name, avatar_url)`)
+        .select('id, title, meeting_type, scheduled_at, duration_minutes, location, status, organizer_id, attendee_id')
         .or(`organizer_id.eq.${session.user.id},attendee_id.eq.${session.user.id}`)
         .gte('scheduled_at', new Date().toISOString())
         .order('scheduled_at', { ascending: true });
 
-      if (error) throw error;
+      if (meetingsError) throw meetingsError;
 
-      const mapped = (data || []).map((m: any) => {
+      if (!meetingsData || meetingsData.length === 0) {
+        setMeetings([]);
+        return;
+      }
+
+      // Get all unique user IDs
+      const userIds = [...new Set([
+        ...meetingsData.map(m => m.organizer_id),
+        ...meetingsData.map(m => m.attendee_id)
+      ])];
+
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .in('id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
+
+      const mapped = meetingsData.map((m) => {
         const scheduled = m.scheduled_at ? new Date(m.scheduled_at) : new Date();
         const isOrganizer = session.user.id === m.organizer_id;
-        const other = isOrganizer ? m.attendee : m.organizer;
+        const organizer = profilesMap.get(m.organizer_id);
+        const attendee = profilesMap.get(m.attendee_id);
+        const other = isOrganizer ? attendee : organizer;
         return {
           id: m.id,
           title: m.title,
@@ -132,6 +157,7 @@ const Schedule = () => {
     if (!session?.user?.id) return;
 
     fetchMeetings();
+    trackPageView('schedule');
 
     // Fetch profiles for attendee selection (exclude current user)
     const fetchProfiles = async () => {
@@ -247,6 +273,7 @@ const Schedule = () => {
       await fetchMeetings();
       setShowNewMeeting(false);
       setSelectedSlot(null);
+      trackEvent('meeting_scheduled', { meeting_type: selectedType, attendee_id: selectedAttendeeId || undefined });
       toast({ title: 'Meeting Scheduled', description: 'Your meeting has been added to the calendar.' });
     } catch (err) {
       console.error('Error scheduling meeting:', err);

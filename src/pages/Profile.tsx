@@ -25,11 +25,13 @@ import { toast } from '@/hooks/use-toast';
 import { showNotification } from '@/components/ui/NotificationCenter';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 const Profile = () => {
   const navigate = useNavigate();
   const { session, signOut, loading: authLoading } = useAuth();
   const { profile, updateProfile, loading: profileLoading } = useProfile();
+  const { trackEvent, trackPageView } = useAnalytics();
   const [isEditing, setIsEditing] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -54,6 +56,13 @@ const Profile = () => {
       navigate('/auth');
     }
   }, [session, authLoading, navigate]);
+
+  // Track page view
+  useEffect(() => {
+    if (session?.user?.id) {
+      trackPageView('profile');
+    }
+  }, [session?.user?.id, trackPageView]);
 
   // Update form when profile loads
   useEffect(() => {
@@ -90,6 +99,7 @@ const Profile = () => {
     try {
       await updateProfile(editForm);
       setIsEditing(false);
+      trackEvent('profile_update');
       toast({ title: 'Profile Updated', description: 'Your changes have been saved.' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message || 'Failed to save profile', variant: 'destructive' });

@@ -7,12 +7,14 @@ import NeonButton from '@/components/ui/NeonButton';
 import { useChat, Conversation, ChatMessage } from '@/hooks/useChat';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 const Messages = () => {
   const { session } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const userIdFromUrl = searchParams.get('user');
+  const { trackEvent, trackPageView } = useAnalytics();
   
   const {
     conversations,
@@ -36,6 +38,13 @@ const Messages = () => {
       navigate('/auth');
     }
   }, [session, navigate]);
+
+  // Track page view
+  useEffect(() => {
+    if (session?.user?.id) {
+      trackPageView('messages');
+    }
+  }, [session?.user?.id, trackPageView]);
 
   // Handle opening conversation with a specific user from URL
   useEffect(() => {
@@ -66,6 +75,7 @@ const Messages = () => {
     setSending(true);
     const success = await sendMessage(inputValue);
     if (success) {
+      trackEvent('message_sent', { conversation_id: activeConversation || undefined });
       setInputValue('');
     }
     setSending(false);
