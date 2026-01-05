@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Twitter, 
@@ -5,8 +6,11 @@ import {
   Facebook, 
   Instagram, 
   Youtube,
-  Mail
+  Mail,
+  Loader2
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 import logo from '@/assets/logo.jpeg';
 
 const socialLinks = [
@@ -25,18 +29,56 @@ const legalLinks = [
 
 const productLinks = [
   { label: 'Features', href: '/#features' },
-  { label: 'Pricing', href: '/pricing' },
-  { label: 'FAQ', href: '/faq' },
+  { label: 'Dashboard', href: '/dashboard' },
+  { label: 'Schedule', href: '/schedule' },
 ];
 
 const companyLinks = [
   { label: 'About Us', href: '/about' },
   { label: 'Contact', href: '/contact' },
-  { label: 'Careers', href: '/careers' },
 ];
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const [email, setEmail] = useState('');
+  const [isSubscribing, setIsSubscribing] = useState(false);
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !email.includes('@')) {
+      toast({
+        title: 'Invalid Email',
+        description: 'Please enter a valid email address.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSubscribing(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('newsletter-subscribe', {
+        body: { email: email.trim().toLowerCase() },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Subscribed!',
+        description: data?.message || 'Thank you for subscribing to our newsletter.',
+      });
+      setEmail('');
+    } catch (error: any) {
+      toast({
+        title: 'Subscription Failed',
+        description: error?.message || 'Failed to subscribe. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubscribing(false);
+    }
+  };
 
   return (
     <footer className="relative z-10 border-t border-border/50 bg-background/80 backdrop-blur-sm">
@@ -135,19 +177,33 @@ const Footer = () => {
                 Get the latest news and updates from MeetMate.
               </p>
             </div>
-            <div className="flex items-center gap-2 w-full md:w-auto">
+            <form onSubmit={handleSubscribe} className="flex items-center gap-2 w-full md:w-auto">
               <div className="relative flex-1 md:w-64">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
                   type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
                   className="w-full pl-10 pr-4 py-2 rounded-lg bg-muted/30 border border-border/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                  disabled={isSubscribing}
                 />
               </div>
-              <button className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-                Subscribe
+              <button 
+                type="submit"
+                disabled={isSubscribing}
+                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {isSubscribing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Subscribing...</span>
+                  </>
+                ) : (
+                  'Subscribe'
+                )}
               </button>
-            </div>
+            </form>
           </div>
         </div>
 

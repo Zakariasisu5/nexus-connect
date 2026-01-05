@@ -149,6 +149,36 @@ export type Database = {
           },
         ]
       }
+      contact_submissions: {
+        Row: {
+          email: string
+          id: string
+          message: string
+          name: string
+          read: boolean
+          subject: string | null
+          submitted_at: string
+        }
+        Insert: {
+          email: string
+          id?: string
+          message: string
+          name: string
+          read?: boolean
+          subject?: string | null
+          submitted_at?: string
+        }
+        Update: {
+          email?: string
+          id?: string
+          message?: string
+          name?: string
+          read?: boolean
+          subject?: string | null
+          submitted_at?: string
+        }
+        Relationships: []
+      }
       event_attendees: {
         Row: {
           event_id: string
@@ -331,6 +361,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      newsletter_subscriptions: {
+        Row: {
+          confirmed: boolean
+          email: string
+          id: string
+          subscribed_at: string
+          unsubscribed_at: string | null
+        }
+        Insert: {
+          confirmed?: boolean
+          email: string
+          id?: string
+          subscribed_at?: string
+          unsubscribed_at?: string | null
+        }
+        Update: {
+          confirmed?: boolean
+          email?: string
+          id?: string
+          subscribed_at?: string
+          unsubscribed_at?: string | null
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
