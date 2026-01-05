@@ -1,13 +1,12 @@
-import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { 
-  Sparkles, 
   Users, 
   Calendar, 
   BarChart3, 
   ArrowRight,
-  QrCode
+  QrCode,
+  Quote
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import GlassCard from '@/components/ui/GlassCard';
@@ -16,6 +15,41 @@ import { useDemoNotifications } from '@/hooks/useDemoNotifications';
 import { useAuth } from '@/hooks/useAuth';
 import Event from ".././assets/tech.png"
 import Conference from ".././assets/techconnect.png"
+
+const testimonials = [
+  {
+    name: 'Sarah Chen',
+    role: 'Head of Events',
+    company: 'TechCorp Global',
+    quote: 'MeetMate transformed how we manage our annual conference. Check-ins went from 15 minutes to under 30 seconds.',
+    avatar: 'SC',
+  },
+  {
+    name: 'Marcus Johnson',
+    role: 'Community Manager',
+    company: 'StartupHub',
+    quote: 'The attendance analytics alone saved us countless hours. We now make data-driven decisions for every event.',
+    avatar: 'MJ',
+  },
+  {
+    name: 'Elena Rodriguez',
+    role: 'Event Director',
+    company: 'Innovation Summit',
+    quote: 'Our attendees love the seamless networking features. Connection rates increased by 40% since switching to MeetMate.',
+    avatar: 'ER',
+  },
+];
+
+const trustedCompanies = [
+  'Microsoft',
+  'Google',
+  'Salesforce',
+  'Stripe',
+  'Slack',
+  'Notion',
+  'Figma',
+  'Shopify',
+];
 
 const features = [
   {
@@ -229,6 +263,89 @@ const Index = () => {
                       {feature.title}
                     </h3>
                     <p className="text-muted-foreground">{feature.description}</p>
+                  </div>
+                </GlassCard>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+
+        {/* Trusted Companies Section */}
+        <section className="space-y-8">
+          <motion.div
+            className="text-center"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Trusted by leading organizations worldwide
+            </p>
+          </motion.div>
+
+          <motion.div
+            className="flex flex-wrap items-center justify-center gap-8 md:gap-12"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+          >
+            {trustedCompanies.map((company, index) => (
+              <motion.div
+                key={company}
+                className="text-xl md:text-2xl font-bold text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.05 }}
+                whileHover={{ scale: 1.05 }}
+              >
+                {company}
+              </motion.div>
+            ))}
+          </motion.div>
+        </section>
+
+        {/* Testimonials Section */}
+        <section className="space-y-12">
+          <motion.div
+            className="text-center space-y-4"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="text-3xl md:text-4xl font-bold">
+              What Our <span className="text-primary">Customers</span> Say
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Join thousands of event professionals who've transformed their events with MeetMate.
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {testimonials.map((testimonial, index) => (
+              <motion.div
+                key={testimonial.name}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <GlassCard className="p-6 h-full flex flex-col" glow="primary">
+                  <Quote className="w-8 h-8 text-primary/40 mb-4" />
+                  <p className="text-muted-foreground flex-grow mb-6 italic">
+                    "{testimonial.quote}"
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold">
+                      {testimonial.avatar}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground">{testimonial.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {testimonial.role}, {testimonial.company}
+                      </p>
+                    </div>
                   </div>
                 </GlassCard>
               </motion.div>
