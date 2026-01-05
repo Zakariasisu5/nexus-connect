@@ -7,7 +7,6 @@ import {
   Calendar, 
   BarChart3, 
   User, 
-  Sparkles,
   Menu,
   X,
   QrCode,
@@ -18,6 +17,7 @@ import { AIChatbot } from './ui/AIChatbot';
 import { NotificationBell, NotificationPanel, NotificationToastContainer } from './ui/NotificationCenter';
 import QRCodeModal from './ui/QRCodeModal';
 import { ThemeToggle } from './ui/ThemeToggle';
+import Footer from './ui/Footer';
 import { cn } from '@/lib/utils';
 import logo from '@/assets/logo.jpeg';
 
@@ -155,7 +155,7 @@ const Layout = ({ children }: LayoutProps) => {
       </nav>
 
       {/* Main Content */}
-      <main className="relative z-10 pt-28 pb-8 px-4 md:px-8 max-w-7xl mx-auto">
+      <main className="relative z-10 pt-28 pb-8 px-4 md:px-8 max-w-7xl mx-auto min-h-[calc(100vh-300px)]">
         <motion.div
           key={location.pathname}
           initial={{ opacity: 0, y: 20 }}
@@ -166,6 +166,9 @@ const Layout = ({ children }: LayoutProps) => {
           {children}
         </motion.div>
       </main>
+
+      {/* Footer */}
+      <Footer />
 
       {/* AI Chatbot */}
       <AIChatbot />
