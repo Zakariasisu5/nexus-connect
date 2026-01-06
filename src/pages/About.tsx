@@ -2,6 +2,8 @@ import { motion } from 'framer-motion';
 import { Users, Target, Award, Globe } from 'lucide-react';
 import Layout from '@/components/Layout';
 import GlassCard from '@/components/ui/GlassCard';
+import zakariaSisu from '@/assets/zakaria-sisu.png';
+import abdulHakimKarim from '@/assets/abdul-hakim-karim.jpg';
 
 const values = [
   {
@@ -27,10 +29,8 @@ const values = [
 ];
 
 const team = [
-  { name: 'Sarah Chen', role: 'CEO & Co-Founder', initials: 'SC' },
-  { name: 'Marcus Johnson', role: 'CTO & Co-Founder', initials: 'MJ' },
-  { name: 'Elena Rodriguez', role: 'Head of Product', initials: 'ER' },
-  { name: 'David Kim', role: 'Head of Engineering', initials: 'DK' },
+  { name: 'Zakaria Sisu', role: 'CEO & Co-Founder', image: zakariaSisu },
+  { name: 'Abdul Hakim Karim', role: 'CTO & Co-Founder', image: abdulHakimKarim },
 ];
 
 const About = () => {
@@ -130,7 +130,7 @@ const About = () => {
             <p className="text-muted-foreground mt-2">The people behind MeetMate</p>
           </motion.div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-2xl mx-auto">
             {team.map((member, index) => (
               <motion.div
                 key={member.name}
@@ -140,10 +140,14 @@ const About = () => {
                 transition={{ delay: index * 0.1 }}
                 className="text-center"
               >
-                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xl font-bold">
-                  {member.initials}
+                <div className="w-32 h-32 mx-auto mb-4 rounded-full overflow-hidden ring-4 ring-primary/20">
+                  <img 
+                    src={member.image} 
+                    alt={member.name}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-                <h3 className="font-semibold">{member.name}</h3>
+                <h3 className="font-semibold text-lg">{member.name}</h3>
                 <p className="text-sm text-muted-foreground">{member.role}</p>
               </motion.div>
             ))}
