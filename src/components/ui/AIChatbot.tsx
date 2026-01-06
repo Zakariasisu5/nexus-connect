@@ -1,20 +1,22 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
   Send, 
   Mic, 
+  MicOff,
   Calendar, 
   Share2, 
   Lightbulb,
   Bot,
-  LogIn
+  Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import GlassCard from './GlassCard';
 import { useAIChat } from '@/hooks/useAIChat';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 const quickActions = [
   { label: 'Suggest talking points', icon: Lightbulb },
@@ -22,13 +24,58 @@ const quickActions = [
   { label: 'Schedule follow-up', icon: Calendar },
 ];
 
+// Speech Recognition types
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  isFinal: boolean;
+  length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: Event) => void;
+  onend: () => void;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition: new () => SpeechRecognition;
+    webkitSpeechRecognition: new () => SpeechRecognition;
+  }
+}
+
 export const AIChatbot = () => {
   const { session } = useAuth();
   const navigate = useNavigate();
-  const { messages, isTyping, sendMessage } = useAIChat();
+  const { messages, isTyping, sendMessage, clearHistory } = useAIChat();
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [isListening, setIsListening] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -47,12 +94,84 @@ export const AIChatbot = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, [isOpen]);
 
+  // Initialize Speech Recognition
+  useEffect(() => {
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognitionAPI) {
+      recognitionRef.current = new SpeechRecognitionAPI();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = true;
+      recognitionRef.current.lang = 'en-US';
+
+      recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
+        let finalTranscript = '';
+        let interimTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+
+        if (finalTranscript) {
+          setInputValue(finalTranscript);
+        } else if (interimTranscript) {
+          setInputValue(interimTranscript);
+        }
+      };
+
+      recognitionRef.current.onerror = () => {
+        setIsListening(false);
+        toast.error('Voice recognition error. Please try again.');
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+    };
+  }, []);
+
+  const toggleVoiceInput = useCallback(() => {
+    if (!recognitionRef.current) {
+      toast.error('Voice input is not supported in your browser');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+        toast.info('Listening... Speak now');
+      } catch (error) {
+        toast.error('Could not start voice recognition');
+      }
+    }
+  }, [isListening]);
+
   const handleSend = async () => {
     if (!inputValue.trim()) return;
     
     if (!session) {
       navigate('/auth');
       return;
+    }
+
+    // Stop listening if active
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
     }
 
     const messageToSend = inputValue;
@@ -70,6 +189,11 @@ export const AIChatbot = () => {
       sendMessage(action);
       setInputValue('');
     }, 0);
+  };
+
+  const handleClearHistory = () => {
+    clearHistory();
+    toast.success('Chat history cleared');
   };
 
   return (
@@ -142,16 +266,28 @@ export const AIChatbot = () => {
                     <p className="text-xs text-muted-foreground">Always here to help</p>
                   </div>
                 </div>
-                <motion.button
-                  aria-label="Close chat"
-                  title="Close chat"
-                  className="p-2 rounded-full hover:bg-muted/50 transition-colors"
-                  onClick={() => setIsOpen(false)}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  <X className="w-5 h-5 text-muted-foreground" />
-                </motion.button>
+                <div className="flex items-center gap-1">
+                  <motion.button
+                    aria-label="Clear chat history"
+                    title="Clear chat history"
+                    className="p-2 rounded-full hover:bg-muted/50 transition-colors"
+                    onClick={handleClearHistory}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <Trash2 className="w-4 h-4 text-muted-foreground" />
+                  </motion.button>
+                  <motion.button
+                    aria-label="Close chat"
+                    title="Close chat"
+                    className="p-2 rounded-full hover:bg-muted/50 transition-colors"
+                    onClick={() => setIsOpen(false)}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <X className="w-5 h-5 text-muted-foreground" />
+                  </motion.button>
+                </div>
               </div>
 
               {/* Messages */}
@@ -244,15 +380,34 @@ export const AIChatbot = () => {
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                      placeholder="Ask me anything..."
-                      className="neon-input pr-10"
+                      placeholder={isListening ? "Listening..." : "Ask me anything..."}
+                      className={cn("neon-input pr-10", isListening && "border-primary")}
                     />
                     <motion.button
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-muted/50 transition-colors"
+                      aria-label={isListening ? "Stop listening" : "Start voice input"}
+                      title={isListening ? "Stop listening" : "Start voice input"}
+                      className={cn(
+                        "absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full transition-colors",
+                        isListening 
+                          ? "bg-primary text-primary-foreground" 
+                          : "hover:bg-muted/50"
+                      )}
+                      onClick={toggleVoiceInput}
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
+                      animate={isListening ? {
+                        scale: [1, 1.1, 1],
+                      } : {}}
+                      transition={isListening ? {
+                        duration: 1,
+                        repeat: Infinity,
+                      } : {}}
                     >
-                      <Mic className="w-4 h-4 text-muted-foreground" />
+                      {isListening ? (
+                        <MicOff className="w-4 h-4" />
+                      ) : (
+                        <Mic className="w-4 h-4 text-muted-foreground" />
+                      )}
                     </motion.button>
                   </div>
                   <motion.button
