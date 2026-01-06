@@ -1,25 +1,20 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  MessageCircle, 
   X, 
   Send, 
   Mic, 
-  Sparkles, 
   Calendar, 
   Share2, 
   Lightbulb,
-  Bot
+  Bot,
+  LogIn
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import GlassCard from './GlassCard';
-
-interface Message {
-  id: string;
-  content: string;
-  sender: 'user' | 'ai';
-  timestamp: Date;
-}
+import { useAIChat } from '@/hooks/useAIChat';
+import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 const quickActions = [
   { label: 'Suggest talking points', icon: Lightbulb },
@@ -28,17 +23,11 @@ const quickActions = [
 ];
 
 export const AIChatbot = () => {
+  const { session } = useAuth();
+  const navigate = useNavigate();
+  const { messages, isTyping, sendMessage } = useAIChat();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      content: "Hi! I'm your AI networking assistant. I can help you find matches, suggest conversation topics, or schedule meetings. How can I help you today?",
-      sender: 'ai',
-      timestamp: new Date(),
-    },
-  ]);
   const [inputValue, setInputValue] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -60,48 +49,27 @@ export const AIChatbot = () => {
 
   const handleSend = async () => {
     if (!inputValue.trim()) return;
+    
+    if (!session) {
+      navigate('/auth');
+      return;
+    }
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      content: inputValue,
-      sender: 'user',
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
+    const messageToSend = inputValue;
     setInputValue('');
-    setIsTyping(true);
-
-    // Simulate AI response
-    setTimeout(() => {
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: getAIResponse(inputValue),
-        sender: 'ai',
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, aiMessage]);
-      setIsTyping(false);
-    }, 1500);
-  };
-
-  const getAIResponse = (input: string): string => {
-    const lowerInput = input.toLowerCase();
-    if (lowerInput.includes('match') || lowerInput.includes('connect')) {
-      return "Based on your profile, I found 3 high-potential matches! Anna Chen (94% match) shares your interest in DeFi and product design. Would you like me to introduce you?";
-    }
-    if (lowerInput.includes('schedule') || lowerInput.includes('meeting')) {
-      return "I can help you schedule a meeting! I see you're both free tomorrow at 10 AM. Shall I book a 30-minute coffee chat at the conference cafe?";
-    }
-    if (lowerInput.includes('talk') || lowerInput.includes('conversation')) {
-      return "Great question! Here are some talking points based on your shared interests:\n\n• DeFi protocol development trends\n• Product design in Web3\n• Community building strategies\n\nWould you like more specific suggestions?";
-    }
-    return "I'd be happy to help with that! You can ask me to find matches, schedule meetings, or suggest conversation topics. What would you like to do?";
+    await sendMessage(messageToSend);
   };
 
   const handleQuickAction = (action: string) => {
+    if (!session) {
+      navigate('/auth');
+      return;
+    }
     setInputValue(action);
-    handleSend();
+    setTimeout(() => {
+      sendMessage(action);
+      setInputValue('');
+    }, 0);
   };
 
   return (
