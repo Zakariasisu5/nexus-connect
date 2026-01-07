@@ -94,45 +94,59 @@ export const AIChatbot = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, [isOpen]);
 
-  // Initialize Speech Recognition
-  useEffect(() => {
+  const initSpeechRecognition = useCallback(() => {
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognitionAPI) {
-      recognitionRef.current = new SpeechRecognitionAPI();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'en-US';
-
-      recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
-        let finalTranscript = '';
-        let interimTranscript = '';
-
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript;
-          } else {
-            interimTranscript += transcript;
-          }
-        }
-
-        if (finalTranscript) {
-          setInputValue(finalTranscript);
-        } else if (interimTranscript) {
-          setInputValue(interimTranscript);
-        }
-      };
-
-      recognitionRef.current.onerror = () => {
-        setIsListening(false);
-        toast.error('Voice recognition error. Please try again.');
-      };
-
-      recognitionRef.current.onend = () => {
-        setIsListening(false);
-      };
+    if (!SpeechRecognitionAPI) {
+      return null;
     }
 
+    const recognition = new SpeechRecognitionAPI();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let finalTranscript = '';
+      let interimTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript;
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+
+      if (finalTranscript) {
+        setInputValue(finalTranscript);
+        setIsListening(false);
+      } else if (interimTranscript) {
+        setInputValue(interimTranscript);
+      }
+    };
+
+    recognition.onerror = (event: Event & { error?: string }) => {
+      setIsListening(false);
+      const errorMessage = event.error || 'unknown';
+      if (errorMessage === 'not-allowed') {
+        toast.error('Microphone access denied. Please allow microphone permissions.');
+      } else if (errorMessage === 'no-speech') {
+        toast.info('No speech detected. Please try again.');
+      } else {
+        toast.error(`Voice recognition error: ${errorMessage}`);
+      }
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    return recognition;
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
       if (recognitionRef.current) {
         recognitionRef.current.abort();
@@ -140,25 +154,45 @@ export const AIChatbot = () => {
     };
   }, []);
 
-  const toggleVoiceInput = useCallback(() => {
-    if (!recognitionRef.current) {
-      toast.error('Voice input is not supported in your browser');
+  const toggleVoiceInput = useCallback(async () => {
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognitionAPI) {
+      toast.error('Voice input is not supported in your browser. Try Chrome or Edge.');
       return;
     }
 
-    if (isListening) {
+    if (isListening && recognitionRef.current) {
       recognitionRef.current.stop();
       setIsListening(false);
-    } else {
-      try {
-        recognitionRef.current.start();
-        setIsListening(true);
-        toast.info('Listening... Speak now');
-      } catch (error) {
-        toast.error('Could not start voice recognition');
-      }
+      return;
     }
-  }, [isListening]);
+
+    // Request microphone permission first
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (error) {
+      toast.error('Microphone access denied. Please allow microphone permissions in your browser settings.');
+      return;
+    }
+
+    // Create fresh recognition instance each time
+    recognitionRef.current = initSpeechRecognition();
+    
+    if (!recognitionRef.current) {
+      toast.error('Could not initialize voice recognition');
+      return;
+    }
+
+    try {
+      recognitionRef.current.start();
+      setIsListening(true);
+      toast.info('Listening... Speak now');
+    } catch (error) {
+      toast.error('Could not start voice recognition. Please try again.');
+      setIsListening(false);
+    }
+  }, [isListening, initSpeechRecognition]);
 
   const handleSend = async () => {
     if (!inputValue.trim()) return;
