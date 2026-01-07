@@ -9,6 +9,7 @@ import React, { Suspense, lazy } from "react";
 
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
+const Connect = lazy(() => import("./pages/Connect"));
 const ProfileSetup = lazy(() => import("./pages/ProfileSetup"));
 const Profile = lazy(() => import("./pages/Profile"));
 const Matches = lazy(() => import("./pages/Matches"));
@@ -81,6 +82,7 @@ export default function App() {
                   <Routes>
                     <Route path="/" element={<Index />} />
                     <Route path="/auth" element={<Auth />} />
+                    <Route path="/connect/:token" element={<Connect />} />
                     <Route path="/profile-setup" element={<ProfileSetup />} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/matches" element={<Matches />} />
