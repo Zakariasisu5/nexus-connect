@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   Linkedin, 
   Mail, 
@@ -22,6 +22,8 @@ import logo from '@/assets/logo.jpeg';
 
 const Auth = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirect');
   const { session, signIn, signUp, loading } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -33,12 +35,17 @@ const Auth = () => {
     confirmPassword: '',
   });
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated - respect redirect param
   useEffect(() => {
     if (session) {
-      navigate('/');
+      // If there's a redirect URL (e.g., from QR code scan), go there
+      if (redirectTo) {
+        navigate(redirectTo);
+      } else {
+        navigate('/');
+      }
     }
-  }, [session, navigate]);
+  }, [session, navigate, redirectTo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +74,12 @@ const Auth = () => {
           }
         } else {
           toast({ title: 'Success', description: 'Account created! Welcome to MeetMate!' });
-          navigate('/profile-setup');
+          // If there's a redirect (from QR scan), go there after signup
+          if (redirectTo) {
+            navigate(redirectTo);
+          } else {
+            navigate('/profile-setup');
+          }
         }
       } else {
         const { error } = await signIn(form.email, form.password);
@@ -75,7 +87,12 @@ const Auth = () => {
           toast({ title: 'Error', description: 'Invalid email or password', variant: 'destructive' });
         } else {
           toast({ title: 'Welcome back!', description: 'Successfully signed in.' });
-          navigate('/');
+          // If there's a redirect (from QR scan), go there after login
+          if (redirectTo) {
+            navigate(redirectTo);
+          } else {
+            navigate('/');
+          }
         }
       }
     } catch (error: any) {
@@ -163,7 +180,10 @@ const Auth = () => {
                   {isSignUp ? 'Create Account' : 'Welcome Back'}
                 </h2>
                 <p className="text-muted-foreground">
-                  {isSignUp ? 'Join the network' : 'Sign in to continue'}
+                  {redirectTo 
+                    ? 'Sign up to complete the connection'
+                    : (isSignUp ? 'Join the network' : 'Sign in to continue')
+                  }
                 </p>
               </div>
 
