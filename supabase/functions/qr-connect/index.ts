@@ -19,11 +19,15 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // Create service role client for all operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get authorization header (required for all actions in this function)
     const authHeader = req.headers.get('Authorization');
+    console.log('Auth header present:', !!authHeader, 'starts with Bearer:', authHeader?.startsWith('Bearer '));
+    
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(
         JSON.stringify({ status: 'error', message: 'Authorization required' }),
@@ -31,55 +35,24 @@ serve(async (req) => {
       );
     }
 
-    // Extract bearer token once
-    const token = authHeader.substring('Bearer '.length).trim();
-    if (!token) {
-      console.error('Auth error: empty bearer token');
-      return new Response(
-        JSON.stringify({ status: 'error', message: 'Invalid authentication' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Extract and log token length (not the token itself for security)
+    const token = authHeader.replace('Bearer ', '');
+    console.log('Token length:', token.length);
 
-    // IMPORTANT:
-    // - Use ANON client to validate user JWTs
-    // - Use SERVICE ROLE client for DB writes (bypasses RLS) after we've identified the user.
-    //
-    // Edge runtimes have no persisted auth session. We therefore pass the JWT as a
-    // custom Authorization header and call getUser() with no args (auth-js will
-    // accept the custom header instead of requiring a stored session).
-    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: {
-          // Set both cases to be safe across runtimes/bundles.
-          Authorization: authHeader,
-          authorization: authHeader,
-        },
-      },
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
-      },
-    });
+    // Validate JWT via Auth server (pass token directly to getUser)
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
 
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Keep existing code below using `supabase` for DB operations
-    const supabase = supabaseAdmin;
-
-    // Validate JWT via Auth server
-    const { data: userRes, error: userError } = await supabaseAuth.auth.getUser();
-
-    if (userError || !userRes?.user?.id) {
+    if (userError || !user) {
       console.error('Auth error:', userError);
       return new Response(
         JSON.stringify({ status: 'error', message: 'Invalid authentication' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    console.log('User authenticated:', user.id);
 
-    const userId = userRes.user.id;
+    const userId = user.id;
 
     // Parse request body
     const { action, qr_code_id }: QRConnectRequest = await req.json();
