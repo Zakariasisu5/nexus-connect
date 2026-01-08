@@ -113,10 +113,10 @@ serve(async (req) => {
         );
       }
 
-      // Find the profile with this QR code ID
+      // Find the profile with this QR code ID - include full profile data for display
       const { data: targetProfile, error: targetError } = await supabase
         .from('profiles')
-        .select('id, full_name')
+        .select('id, full_name, title, company, location, bio, avatar_url, skills, interests, linkedin_url, github_url, website')
         .eq('qr_code_id', qr_code_id)
         .maybeSingle();
 
@@ -154,6 +154,20 @@ serve(async (req) => {
             status: 'already_connected',
             message: "You're already connected",
             connectedUserName: targetProfile.full_name,
+            connectedUserProfile: {
+              id: targetProfile.id,
+              full_name: targetProfile.full_name,
+              title: targetProfile.title,
+              company: targetProfile.company,
+              location: targetProfile.location,
+              bio: targetProfile.bio,
+              avatar_url: targetProfile.avatar_url,
+              skills: targetProfile.skills || [],
+              interests: targetProfile.interests || [],
+              linkedin_url: targetProfile.linkedin_url,
+              github_url: targetProfile.github_url,
+              website: targetProfile.website,
+            },
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -210,6 +224,20 @@ serve(async (req) => {
           status: 'success',
           message: "You're now connected!",
           connectedUserName: targetProfile.full_name,
+          connectedUserProfile: {
+            id: targetProfile.id,
+            full_name: targetProfile.full_name,
+            title: targetProfile.title,
+            company: targetProfile.company,
+            location: targetProfile.location,
+            bio: targetProfile.bio,
+            avatar_url: targetProfile.avatar_url,
+            skills: targetProfile.skills || [],
+            interests: targetProfile.interests || [],
+            linkedin_url: targetProfile.linkedin_url,
+            github_url: targetProfile.github_url,
+            website: targetProfile.website,
+          },
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
