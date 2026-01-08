@@ -44,7 +44,18 @@ serve(async (req) => {
     // IMPORTANT:
     // - Use ANON client to validate user JWTs
     // - Use SERVICE ROLE client for DB writes (bypasses RLS) after we've identified the user.
+    //
+    // Edge runtimes have no persisted auth session. We therefore pass the JWT as a
+    // custom Authorization header and call getUser() with no args (auth-js will
+    // accept the custom header instead of requiring a stored session).
     const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          // Set both cases to be safe across runtimes/bundles.
+          Authorization: authHeader,
+          authorization: authHeader,
+        },
+      },
       auth: {
         persistSession: false,
         autoRefreshToken: false,
@@ -58,7 +69,7 @@ serve(async (req) => {
     const supabase = supabaseAdmin;
 
     // Validate JWT via Auth server
-    const { data: userRes, error: userError } = await supabaseAuth.auth.getUser(token);
+    const { data: userRes, error: userError } = await supabaseAuth.auth.getUser();
 
     if (userError || !userRes?.user?.id) {
       console.error('Auth error:', userError);
