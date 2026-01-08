@@ -18,6 +18,7 @@ import GlassCard from '@/components/ui/GlassCard';
 import NeonButton from '@/components/ui/NeonButton';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 import logo from '@/assets/logo.jpeg';
 
 const Auth = () => {
@@ -25,6 +26,7 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get('redirect');
   const { session, signIn, signUp, loading } = useAuth();
+  const { profile, loading: profileLoading } = useProfile();
   // If coming from QR scan, default to signup mode
   const [isSignUp, setIsSignUp] = useState(!!redirectTo);
   const [showPassword, setShowPassword] = useState(false);
@@ -36,17 +38,29 @@ const Auth = () => {
     confirmPassword: '',
   });
 
-  // Redirect if already authenticated - respect redirect param
+  // Redirect if already authenticated - check profile completeness
   useEffect(() => {
-    if (session) {
+    if (session && !profileLoading) {
       // If there's a redirect URL (e.g., from QR code scan), go there immediately
       if (redirectTo) {
         navigate(redirectTo);
+      } else if (profile) {
+        // Check if profile is complete
+        const isProfileIncomplete = !profile.full_name || 
+          !profile.skills || profile.skills.length === 0 ||
+          !profile.interests || profile.interests.length === 0;
+        
+        if (isProfileIncomplete) {
+          navigate('/profile-setup');
+        } else {
+          navigate('/matches');
+        }
       } else {
-        navigate('/');
+        // No profile exists yet, go to setup
+        navigate('/profile-setup');
       }
     }
-  }, [session, navigate, redirectTo]);
+  }, [session, profileLoading, profile, navigate, redirectTo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

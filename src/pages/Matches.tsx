@@ -19,6 +19,7 @@ import ChipTag from '@/components/ui/ChipTag';
 import ScheduleModal from '@/components/ui/ScheduleModal';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 import { useMatches } from '@/hooks/useMatches';
 import { useConnections } from '@/hooks/useConnections';
 import { useAnalytics } from '@/hooks/useAnalytics';
@@ -50,6 +51,22 @@ const Matches = () => {
       navigate('/auth');
     }
   }, [session, authLoading, navigate]);
+
+  // Redirect to profile setup if profile is incomplete
+  const { profile, loading: profileLoading } = useProfile();
+  
+  useEffect(() => {
+    if (!authLoading && !profileLoading && session && profile) {
+      // Check if essential profile fields are missing
+      const isProfileIncomplete = !profile.full_name || 
+        !profile.skills || profile.skills.length === 0 ||
+        !profile.interests || profile.interests.length === 0;
+      
+      if (isProfileIncomplete) {
+        navigate('/profile-setup');
+      }
+    }
+  }, [session, authLoading, profileLoading, profile, navigate]);
 
   // Track page view
   useEffect(() => {
