@@ -9,12 +9,18 @@ import React, { Suspense, lazy } from "react";
 
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
+const Connect = lazy(() => import("./pages/Connect"));
 const ProfileSetup = lazy(() => import("./pages/ProfileSetup"));
 const Profile = lazy(() => import("./pages/Profile"));
 const Matches = lazy(() => import("./pages/Matches"));
 const Messages = lazy(() => import("./pages/Messages"));
 const Schedule = lazy(() => import("./pages/Schedule"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const About = lazy(() => import("./pages/About"));
+const Contact = lazy(() => import("./pages/Contact"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Cookies = lazy(() => import("./pages/Cookies"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 import { AuthProvider } from "@/hooks/useAuth";
 import { useMessageNotifications } from "@/hooks/useMessageNotifications";
@@ -38,6 +44,14 @@ export default function App() {
       const msg =
         (event.reason instanceof Error ? event.reason.message : String(event.reason)) ||
         "Unexpected error";
+
+      // Handle dynamic import failures (stale cache)
+      if (msg.includes("Failed to fetch dynamically imported module")) {
+        // Reload the page to get fresh assets
+        window.location.reload();
+        event.preventDefault();
+        return;
+      }
 
       // Most common user-facing issue: AI rate limiting
       if (msg.includes("429") || msg.toLowerCase().includes("rate limit")) {
@@ -76,12 +90,18 @@ export default function App() {
                   <Routes>
                     <Route path="/" element={<Index />} />
                     <Route path="/auth" element={<Auth />} />
+                    <Route path="/connect/:token" element={<Connect />} />
                     <Route path="/profile-setup" element={<ProfileSetup />} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/matches" element={<Matches />} />
                     <Route path="/messages" element={<Messages />} />
                     <Route path="/schedule" element={<Schedule />} />
                     <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/about" element={<About />} />
+                    <Route path="/contact" element={<Contact />} />
+                    <Route path="/privacy" element={<Privacy />} />
+                    <Route path="/terms" element={<Terms />} />
+                    <Route path="/cookies" element={<Cookies />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>

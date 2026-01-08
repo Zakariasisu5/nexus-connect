@@ -1,25 +1,22 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  MessageCircle, 
   X, 
   Send, 
   Mic, 
-  Sparkles, 
+  MicOff,
   Calendar, 
   Share2, 
   Lightbulb,
-  Bot
+  Bot,
+  Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import GlassCard from './GlassCard';
-
-interface Message {
-  id: string;
-  content: string;
-  sender: 'user' | 'ai';
-  timestamp: Date;
-}
+import { useAIChat } from '@/hooks/useAIChat';
+import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 const quickActions = [
   { label: 'Suggest talking points', icon: Lightbulb },
@@ -27,19 +24,58 @@ const quickActions = [
   { label: 'Schedule follow-up', icon: Calendar },
 ];
 
+// Speech Recognition types
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  isFinal: boolean;
+  length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: Event) => void;
+  onend: () => void;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition: new () => SpeechRecognition;
+    webkitSpeechRecognition: new () => SpeechRecognition;
+  }
+}
+
 export const AIChatbot = () => {
+  const { session } = useAuth();
+  const navigate = useNavigate();
+  const { messages, isTyping, sendMessage, clearHistory } = useAIChat();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      content: "Hi! I'm your AI networking assistant. I can help you find matches, suggest conversation topics, or schedule meetings. How can I help you today?",
-      sender: 'ai',
-      timestamp: new Date(),
-    },
-  ]);
   const [inputValue, setInputValue] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -58,50 +94,140 @@ export const AIChatbot = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, [isOpen]);
 
-  const handleSend = async () => {
-    if (!inputValue.trim()) return;
+  const initSpeechRecognition = useCallback(() => {
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionAPI) {
+      return null;
+    }
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      content: inputValue,
-      sender: 'user',
-      timestamp: new Date(),
+    const recognition = new SpeechRecognitionAPI();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let finalTranscript = '';
+      let interimTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript;
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+
+      if (finalTranscript) {
+        setInputValue(finalTranscript);
+        setIsListening(false);
+      } else if (interimTranscript) {
+        setInputValue(interimTranscript);
+      }
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    recognition.onerror = (event: Event & { error?: string }) => {
+      setIsListening(false);
+      const errorMessage = event.error || 'unknown';
+      if (errorMessage === 'not-allowed') {
+        toast.error('Microphone access denied. Please allow microphone permissions.');
+      } else if (errorMessage === 'no-speech') {
+        toast.info('No speech detected. Please try again.');
+      } else {
+        toast.error(`Voice recognition error: ${errorMessage}`);
+      }
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    return recognition;
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+    };
+  }, []);
+
+  const toggleVoiceInput = useCallback(async () => {
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognitionAPI) {
+      toast.error('Voice input is not supported in your browser. Try Chrome or Edge.');
+      return;
+    }
+
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+
+    // Request microphone permission first
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (error) {
+      toast.error('Microphone access denied. Please allow microphone permissions in your browser settings.');
+      return;
+    }
+
+    // Create fresh recognition instance each time
+    recognitionRef.current = initSpeechRecognition();
+    
+    if (!recognitionRef.current) {
+      toast.error('Could not initialize voice recognition');
+      return;
+    }
+
+    try {
+      recognitionRef.current.start();
+      setIsListening(true);
+      toast.info('Listening... Speak now');
+    } catch (error) {
+      toast.error('Could not start voice recognition. Please try again.');
+      setIsListening(false);
+    }
+  }, [isListening, initSpeechRecognition]);
+
+  const handleSend = async () => {
+    if (!inputValue.trim()) return;
+    
+    if (!session) {
+      navigate('/auth');
+      return;
+    }
+
+    // Stop listening if active
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    }
+
+    const messageToSend = inputValue;
     setInputValue('');
-    setIsTyping(true);
-
-    // Simulate AI response
-    setTimeout(() => {
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: getAIResponse(inputValue),
-        sender: 'ai',
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, aiMessage]);
-      setIsTyping(false);
-    }, 1500);
-  };
-
-  const getAIResponse = (input: string): string => {
-    const lowerInput = input.toLowerCase();
-    if (lowerInput.includes('match') || lowerInput.includes('connect')) {
-      return "Based on your profile, I found 3 high-potential matches! Anna Chen (94% match) shares your interest in DeFi and product design. Would you like me to introduce you?";
-    }
-    if (lowerInput.includes('schedule') || lowerInput.includes('meeting')) {
-      return "I can help you schedule a meeting! I see you're both free tomorrow at 10 AM. Shall I book a 30-minute coffee chat at the conference cafe?";
-    }
-    if (lowerInput.includes('talk') || lowerInput.includes('conversation')) {
-      return "Great question! Here are some talking points based on your shared interests:\n\n• DeFi protocol development trends\n• Product design in Web3\n• Community building strategies\n\nWould you like more specific suggestions?";
-    }
-    return "I'd be happy to help with that! You can ask me to find matches, schedule meetings, or suggest conversation topics. What would you like to do?";
+    await sendMessage(messageToSend);
   };
 
   const handleQuickAction = (action: string) => {
+    if (!session) {
+      navigate('/auth');
+      return;
+    }
     setInputValue(action);
-    handleSend();
+    setTimeout(() => {
+      sendMessage(action);
+      setInputValue('');
+    }, 0);
+  };
+
+  const handleClearHistory = () => {
+    clearHistory();
+    toast.success('Chat history cleared');
   };
 
   return (
@@ -174,16 +300,28 @@ export const AIChatbot = () => {
                     <p className="text-xs text-muted-foreground">Always here to help</p>
                   </div>
                 </div>
-                <motion.button
-                  aria-label="Close chat"
-                  title="Close chat"
-                  className="p-2 rounded-full hover:bg-muted/50 transition-colors"
-                  onClick={() => setIsOpen(false)}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  <X className="w-5 h-5 text-muted-foreground" />
-                </motion.button>
+                <div className="flex items-center gap-1">
+                  <motion.button
+                    aria-label="Clear chat history"
+                    title="Clear chat history"
+                    className="p-2 rounded-full hover:bg-muted/50 transition-colors"
+                    onClick={handleClearHistory}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <Trash2 className="w-4 h-4 text-muted-foreground" />
+                  </motion.button>
+                  <motion.button
+                    aria-label="Close chat"
+                    title="Close chat"
+                    className="p-2 rounded-full hover:bg-muted/50 transition-colors"
+                    onClick={() => setIsOpen(false)}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <X className="w-5 h-5 text-muted-foreground" />
+                  </motion.button>
+                </div>
               </div>
 
               {/* Messages */}
@@ -276,15 +414,34 @@ export const AIChatbot = () => {
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                      placeholder="Ask me anything..."
-                      className="neon-input pr-10"
+                      placeholder={isListening ? "Listening..." : "Ask me anything..."}
+                      className={cn("neon-input pr-10", isListening && "border-primary")}
                     />
                     <motion.button
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-muted/50 transition-colors"
+                      aria-label={isListening ? "Stop listening" : "Start voice input"}
+                      title={isListening ? "Stop listening" : "Start voice input"}
+                      className={cn(
+                        "absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full transition-colors",
+                        isListening 
+                          ? "bg-primary text-primary-foreground" 
+                          : "hover:bg-muted/50"
+                      )}
+                      onClick={toggleVoiceInput}
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
+                      animate={isListening ? {
+                        scale: [1, 1.1, 1],
+                      } : {}}
+                      transition={isListening ? {
+                        duration: 1,
+                        repeat: Infinity,
+                      } : {}}
                     >
-                      <Mic className="w-4 h-4 text-muted-foreground" />
+                      {isListening ? (
+                        <MicOff className="w-4 h-4" />
+                      ) : (
+                        <Mic className="w-4 h-4 text-muted-foreground" />
+                      )}
                     </motion.button>
                   </div>
                   <motion.button

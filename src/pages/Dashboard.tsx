@@ -18,6 +18,7 @@ import GlassCard from '@/components/ui/GlassCard';
 import NeonButton from '@/components/ui/NeonButton';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 interface Metric {
   label: string;
@@ -27,16 +28,35 @@ interface Metric {
   color: 'primary' | 'accent' | 'secondary';
 }
 
+interface ChartDataItem {
+  day: string;
+  matches: number;
+  meetings: number;
+  messages: number;
+  connections: number;
+}
+
+interface EngagementDataItem {
+  time: string;
+  level: string;
+  count: number;
+}
+
 interface AnalyticsData {
   total_matches: number;
   total_meetings: number;
   total_connections: number;
+  total_messages: number;
   response_rate: number;
+  conversion_rate: number;
+  chart_data: ChartDataItem[];
+  engagement_data: EngagementDataItem[];
 }
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { session, loading: authLoading } = useAuth();
+  const { trackPageView } = useAnalytics();
   const [selectedPeriod, setSelectedPeriod] = useState('week');
   const [animatedValues, setAnimatedValues] = useState<Record<string, number>>({});
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
@@ -50,6 +70,13 @@ const Dashboard = () => {
       navigate('/auth');
     }
   }, [session, authLoading, navigate]);
+
+  // Track page view
+  useEffect(() => {
+    if (session?.user?.id) {
+      trackPageView('dashboard');
+    }
+  }, [session?.user?.id, trackPageView]);
 
   // Fetch analytics data
   useEffect(() => {
@@ -111,7 +138,11 @@ const Dashboard = () => {
         total_matches: 0,
         total_meetings: 0,
         total_connections: 0,
-        response_rate: 0
+        total_messages: 0,
+        response_rate: 0,
+        conversion_rate: 0,
+        chart_data: [],
+        engagement_data: [],
       });
     } finally {
       setIsLoading(false);
@@ -122,24 +153,38 @@ const Dashboard = () => {
     if (!session?.user?.id) return;
     
     try {
-      const { data, error } = await supabase
+      // Fetch matches first
+      const { data: matchesData, error: matchesError } = await supabase
         .from('matches')
-        .select(`
-          id,
-          match_score,
-          matched_user_id,
-          profiles:matched_user_id (
-            full_name,
-            company,
-            avatar_url
-          )
-        `)
+        .select('id, match_score, matched_user_id')
         .eq('user_id', session.user.id)
         .order('match_score', { ascending: false })
         .limit(4);
       
-      if (error) throw error;
-      setTopMatches(data || []);
+      if (matchesError) throw matchesError;
+      
+      if (!matchesData || matchesData.length === 0) {
+        setTopMatches([]);
+        return;
+      }
+
+      // Fetch profiles for matched users
+      const matchedUserIds = matchesData.map(m => m.matched_user_id);
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, company, avatar_url')
+        .in('id', matchedUserIds);
+
+      if (profilesError) throw profilesError;
+
+      // Combine matches with profiles
+      const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
+      const combined = matchesData.map(match => ({
+        ...match,
+        profiles: profilesMap.get(match.matched_user_id) || null
+      }));
+
+      setTopMatches(combined);
     } catch (error) {
       console.error('Error fetching top matches:', error);
     }
@@ -149,16 +194,44 @@ const Dashboard = () => {
     if (!session?.user?.id) return;
 
     try {
-      const { data, error } = await supabase
+      // Fetch meetings first
+      const { data: meetingsData, error: meetingsError } = await supabase
         .from('meetings')
-        .select(`id, title, scheduled_at, duration_minutes, status, organizer_id, attendee_id, organizer:organizer_id (full_name, avatar_url), attendee:attendee_id (full_name, avatar_url)`)
+        .select('id, title, scheduled_at, duration_minutes, status, organizer_id, attendee_id')
         .or(`organizer_id.eq.${session.user.id},attendee_id.eq.${session.user.id}`)
         .gte('scheduled_at', new Date().toISOString())
         .order('scheduled_at', { ascending: true })
         .limit(6);
 
-      if (error) throw error;
-      setMeetings(data || []);
+      if (meetingsError) throw meetingsError;
+
+      if (!meetingsData || meetingsData.length === 0) {
+        setMeetings([]);
+        return;
+      }
+
+      // Get all unique user IDs (organizers and attendees)
+      const userIds = [...new Set([
+        ...meetingsData.map(m => m.organizer_id),
+        ...meetingsData.map(m => m.attendee_id)
+      ])];
+
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .in('id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
+      
+      const combined = meetingsData.map(m => ({
+        ...m,
+        organizer: profilesMap.get(m.organizer_id) || null,
+        attendee: profilesMap.get(m.attendee_id) || null,
+      }));
+
+      setMeetings(combined);
     } catch (error) {
       console.error('Error fetching meetings:', error);
     }
@@ -171,26 +244,28 @@ const Dashboard = () => {
     { label: 'Response Rate', value: analytics?.response_rate || 0, change: 5, icon: TrendingUp, color: 'primary' },
   ];
 
-  const chartData = [
-    { day: 'Mon', matches: 8, meetings: 4 },
-    { day: 'Tue', matches: 12, meetings: 7 },
-    { day: 'Wed', matches: 15, meetings: 9 },
-    { day: 'Thu', matches: 10, meetings: 6 },
-    { day: 'Fri', matches: 6, meetings: 3 },
-    { day: 'Sat', matches: 4, meetings: 2 },
-    { day: 'Sun', matches: 2, meetings: 1 },
+  // Use real chart data from analytics or fallback to empty
+  const chartData = analytics?.chart_data?.length ? analytics.chart_data : [
+    { day: 'Mon', matches: 0, meetings: 0, messages: 0, connections: 0 },
+    { day: 'Tue', matches: 0, meetings: 0, messages: 0, connections: 0 },
+    { day: 'Wed', matches: 0, meetings: 0, messages: 0, connections: 0 },
+    { day: 'Thu', matches: 0, meetings: 0, messages: 0, connections: 0 },
+    { day: 'Fri', matches: 0, meetings: 0, messages: 0, connections: 0 },
+    { day: 'Sat', matches: 0, meetings: 0, messages: 0, connections: 0 },
+    { day: 'Sun', matches: 0, meetings: 0, messages: 0, connections: 0 },
   ];
 
-  const engagementData = [
-    { time: '9:00 AM', level: 'medium' },
-    { time: '10:00 AM', level: 'high' },
-    { time: '11:00 AM', level: 'very-high' },
-    { time: '12:00 PM', level: 'low' },
-    { time: '1:00 PM', level: 'medium' },
-    { time: '2:00 PM', level: 'high' },
-    { time: '3:00 PM', level: 'very-high' },
-    { time: '4:00 PM', level: 'high' },
-    { time: '5:00 PM', level: 'medium' },
+  // Use real engagement data from analytics or fallback
+  const engagementData = analytics?.engagement_data?.length ? analytics.engagement_data : [
+    { time: '9:00 AM', level: 'low', count: 0 },
+    { time: '10:00 AM', level: 'low', count: 0 },
+    { time: '11:00 AM', level: 'low', count: 0 },
+    { time: '12:00 PM', level: 'low', count: 0 },
+    { time: '1:00 PM', level: 'low', count: 0 },
+    { time: '2:00 PM', level: 'low', count: 0 },
+    { time: '3:00 PM', level: 'low', count: 0 },
+    { time: '4:00 PM', level: 'low', count: 0 },
+    { time: '5:00 PM', level: 'low', count: 0 },
   ];
 
   // Animate numbers on mount
@@ -247,9 +322,9 @@ const Dashboard = () => {
         >
           <div className="space-y-2">
             <h1 className="text-4xl font-bold">
-              <span className="">Analytics Dashboard</span> 
+              <span className="">Event Analytics</span> 
             </h1>
-            <p className="text-muted-foreground">Track your networking success</p>
+            <p className="text-muted-foreground">Monitor attendance, engagement, and event performance</p>
           </div>
           <div className="flex items-center gap-3">
             <select
@@ -324,13 +399,15 @@ const Dashboard = () => {
                   <div key={data.day} className="space-y-2 min-w-[260px]">
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium w-12">{data.day}</span>
-                      <span className="text-muted-foreground">{data.matches} matches</span>
+                      <span className="text-muted-foreground">
+                        {data.matches} matches, {data.meetings} meetings, {data.messages} msgs
+                      </span>
                     </div>
                     <div className="h-3 bg-muted/30 rounded-full overflow-hidden">
                       <motion.div
                         className="h-full rounded-full bg-gradient-to-r from-primary to-accent"
                         initial={{ width: 0 }}
-                        animate={{ width: `${(data.matches / maxChartValue) * 100}%` }}
+                        animate={{ width: `${maxChartValue > 0 ? (data.matches / maxChartValue) * 100 : 0}%` }}
                         transition={{ duration: 1, delay: 0.5 + index * 0.1, ease: 'easeOut' }}
                       />
                     </div>

@@ -19,8 +19,10 @@ import ChipTag from '@/components/ui/ChipTag';
 import ScheduleModal from '@/components/ui/ScheduleModal';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 import { useMatches } from '@/hooks/useMatches';
 import { useConnections } from '@/hooks/useConnections';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 const filters = ['All', 'High Match (90%+)', 'Connected', 'Pending'];
 
@@ -29,6 +31,7 @@ const Matches = () => {
   const { session, loading: authLoading } = useAuth();
   const { matches, loading: matchesLoading, generateMatches, updateMatchStatus } = useMatches();
   const { createConnection, isConnected } = useConnections();
+  const { trackEvent, trackPageView } = useAnalytics();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
@@ -48,6 +51,29 @@ const Matches = () => {
       navigate('/auth');
     }
   }, [session, authLoading, navigate]);
+
+  // Redirect to profile setup if profile is incomplete
+  const { profile, loading: profileLoading } = useProfile();
+  
+  useEffect(() => {
+    if (!authLoading && !profileLoading && session && profile) {
+      // Check if essential profile fields are missing
+      const isProfileIncomplete = !profile.full_name || 
+        !profile.skills || profile.skills.length === 0 ||
+        !profile.interests || profile.interests.length === 0;
+      
+      if (isProfileIncomplete) {
+        navigate('/profile-setup');
+      }
+    }
+  }, [session, authLoading, profileLoading, profile, navigate]);
+
+  // Track page view
+  useEffect(() => {
+    if (session?.user?.id) {
+      trackPageView('matches');
+    }
+  }, [session?.user?.id, trackPageView]);
 
   const filteredMatches = matches.filter((match) => {
     const matchedProfile = match.matched_profile;
@@ -75,6 +101,7 @@ const Matches = () => {
     const result = await generateMatches();
     
     if (result.success) {
+      trackEvent('match_generated', { count: result.count });
       toast({ title: 'Matches Generated!', description: `Found ${result.count} potential connections.` });
     } else {
       toast({ title: 'Error', description: result.error, variant: 'destructive' });
@@ -86,6 +113,7 @@ const Matches = () => {
     try {
       // Mark match as pending and notify recipient; do NOT auto-create a connection
       await updateMatchStatus(matchId, 'pending');
+      trackEvent('connection_sent', { match_id: matchId, target_user_id: matchedUserId });
       toast({ title: 'Request Sent', description: `Connection request sent to ${matchName}.` });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to send connection request.', variant: 'destructive' });
@@ -98,6 +126,8 @@ const Matches = () => {
       const success = await createConnection(otherUserId, matchId);
       if (success) {
         await updateMatchStatus(matchId, 'accepted');
+        trackEvent('match_accepted', { match_id: matchId, target_user_id: otherUserId });
+        trackEvent('connection_accepted', { match_id: matchId, target_user_id: otherUserId });
         toast({ title: 'Accepted', description: `You are now connected with ${otherName}.` });
       } else {
         toast({ title: 'Error', description: 'Failed to create connection.', variant: 'destructive' });
@@ -110,6 +140,7 @@ const Matches = () => {
   const handleReject = async (matchId: string) => {
     try {
       await updateMatchStatus(matchId, 'rejected');
+      trackEvent('match_rejected', { match_id: matchId });
       toast({ title: 'Rejected', description: `Connection request declined.` });
     } catch (err) {
       toast({ title: 'Error', description: 'Failed to reject request.', variant: 'destructive' });

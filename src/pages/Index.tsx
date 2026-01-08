@@ -1,13 +1,12 @@
-import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { 
-  Sparkles, 
   Users, 
   Calendar, 
   BarChart3, 
   ArrowRight,
-  QrCode
+  QrCode,
+  Quote
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import GlassCard from '@/components/ui/GlassCard';
@@ -17,29 +16,64 @@ import { useAuth } from '@/hooks/useAuth';
 import Event from ".././assets/tech.png"
 import Conference from ".././assets/techconnect.png"
 
+const testimonials = [
+  {
+    name: 'Sarah Chen',
+    role: 'Head of Events',
+    company: 'TechCorp Global',
+    quote: 'MeetMate transformed how we manage our annual conference. Check-ins went from 15 minutes to under 30 seconds.',
+    avatar: 'SC',
+  },
+  {
+    name: 'Marcus Johnson',
+    role: 'Community Manager',
+    company: 'StartupHub',
+    quote: 'The attendance analytics alone saved us countless hours. We now make data-driven decisions for every event.',
+    avatar: 'MJ',
+  },
+  {
+    name: 'Elena Rodriguez',
+    role: 'Event Director',
+    company: 'Innovation Summit',
+    quote: 'Our attendees love the seamless networking features. Connection rates increased by 40% since switching to MeetMate.',
+    avatar: 'ER',
+  },
+];
+
+const trustedCompanies = [
+  'Microsoft',
+  'Google',
+  'Salesforce',
+  'Stripe',
+  'Slack',
+  'Notion',
+  'Figma',
+  'Shopify',
+];
+
 const features = [
   {
     icon: Users,
-    title: 'AI-Powered Matching',
-    description: 'Smart algorithms find your perfect connections based on shared interests and goals.',
+    title: 'Smart Attendee Matching',
+    description: 'Connect with the right people automatically based on shared interests, goals, and expertise.',
     gradient: 'from-primary to-primary/60',
   },
   {
     icon: QrCode,
-    title: 'Instant QR Connect',
-    description: 'Scan QR codes to instantly connect and share profiles at conferences.',
+    title: 'QR Code Check-In',
+    description: 'Fast, contactless check-in and instant profile sharing with a simple scan.',
     gradient: 'from-accent to-accent/60',
   },
   {
     icon: Calendar,
-    title: 'Smart Scheduling',
-    description: 'Book meetings effortlessly with integrated calendar and availability sync.',
+    title: 'Event Scheduling',
+    description: 'Effortlessly manage sessions, meetings, and appointments with built-in calendar sync.',
     gradient: 'from-secondary to-secondary/60',
   },
   {
     icon: BarChart3,
-    title: 'Engagement Analytics',
-    description: 'Track your networking success with detailed insights and metrics.',
+    title: 'Attendance Analytics',
+    description: 'Real-time insights into attendee engagement, check-ins, and event performance.',
     gradient: 'from-primary to-accent',
   },
 ];
@@ -70,17 +104,17 @@ const Index = () => {
           >
            
               
-              <h2>welcome to meetmate</h2>
+              <span className=''>Event & Conference Management Made Simple</span>
 
             <h3 className="text-5xl md:text-7xl font-bold leading-tight">
-              <span className="text-foreground">Turn Passive Networking into</span>
+              <span className="text-foreground">Seamless Events,</span>
               <br />
               <span className="text-foreground">Meaningful Connections</span>
             </h3>
 
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              MeetMate uses AI to match you with the right people at conferences. 
-              Scan, connect, and build relationships that matter.
+              MeetMate streamlines event management with smart check-ins, real-time attendance tracking, 
+              and effortless attendee networking—all in one platform.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -161,11 +195,11 @@ const Index = () => {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
               <figcaption className="absolute left-4 bottom-4 text-left text-white">
-                <h4 className="text-lg font-bold">Networking Night</h4>
-                <p className="text-sm text-white/90">Meet like-minded professionals and grow your network.</p>
+                <h4 className="text-lg font-bold">Corporate Events</h4>
+                <p className="text-sm text-white/90">Streamline check-ins and connect attendees effortlessly.</p>
                 <div className="mt-3">
                   <Link to="/matches">
-                    <NeonButton size="sm" className="bg-white/10">See Matches</NeonButton>
+                    <NeonButton size="sm" className="bg-white/10">View Attendees</NeonButton>
                   </Link>
                 </div>
               </figcaption>
@@ -180,8 +214,8 @@ const Index = () => {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
               <figcaption className="absolute left-4 bottom-4 text-left text-white">
-                <h4 className="text-lg font-bold">Tech Connect 2025</h4>
-                <p className="text-sm text-white/90">Real-time matches and on-site scheduling made easy.</p>
+                <h4 className="text-lg font-bold">Industry Conferences</h4>
+                <p className="text-sm text-white/90">Real-time attendance tracking and seamless scheduling.</p>
                 <div className="mt-3">
                   <Link to="/auth">
                     <NeonButton size="sm" className="bg-white/10">Get Started</NeonButton>
@@ -201,10 +235,10 @@ const Index = () => {
             viewport={{ once: true }}
           >
             <h2 className="text-3xl md:text-4xl font-bold">
-              <span className="">Everything You Need</span> to Network Smarter
+              <span className="">Everything You Need</span> to Run Better Events
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              From AI matching to real-time notifications, we've got you covered.
+              From check-in to follow-up, manage every aspect of your event with confidence.
             </p>
           </motion.div>
 
@@ -236,6 +270,89 @@ const Index = () => {
           </div>
         </section>
 
+        {/* Trusted Companies Section */}
+        <section className="space-y-8">
+          <motion.div
+            className="text-center"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Trusted by leading organizations worldwide
+            </p>
+          </motion.div>
+
+          <motion.div
+            className="flex flex-wrap items-center justify-center gap-8 md:gap-12"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+          >
+            {trustedCompanies.map((company, index) => (
+              <motion.div
+                key={company}
+                className="text-xl md:text-2xl font-bold text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.05 }}
+                whileHover={{ scale: 1.05 }}
+              >
+                {company}
+              </motion.div>
+            ))}
+          </motion.div>
+        </section>
+
+        {/* Testimonials Section */}
+        <section className="space-y-12">
+          <motion.div
+            className="text-center space-y-4"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="text-3xl md:text-4xl font-bold">
+              What Our <span className="text-primary">Customers</span> Say
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Join thousands of event professionals who've transformed their events with MeetMate.
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {testimonials.map((testimonial, index) => (
+              <motion.div
+                key={testimonial.name}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <GlassCard className="p-6 h-full flex flex-col" glow="primary">
+                  <Quote className="w-8 h-8 text-primary/40 mb-4" />
+                  <p className="text-muted-foreground flex-grow mb-6 italic">
+                    "{testimonial.quote}"
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold">
+                      {testimonial.avatar}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground">{testimonial.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {testimonial.role}, {testimonial.company}
+                      </p>
+                    </div>
+                  </div>
+                </GlassCard>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+
         {/* CTA Section */}
         <section className="text-center">
           <motion.div
@@ -253,10 +370,10 @@ const Index = () => {
               />
               <div className="relative z-10 space-y-6">
                 <h2 className="text-3xl md:text-4xl font-bold">
-                  Ready to Transform Your Networking?
+                  Ready to Elevate Your Events?
                 </h2>
                 <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-                  Join thousands of professionals already using MeetMate to build meaningful connections.
+                  Join thousands of organizers who trust MeetMate to deliver exceptional event experiences.
                 </p>
                 <Link to={session ? "/matches" : "/auth"}>
                   <NeonButton size="lg">

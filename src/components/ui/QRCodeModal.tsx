@@ -47,7 +47,7 @@ const QRCodeModal = ({ isOpen, onClose, profileId, profileName, onScanResult }: 
             <GlassCard className="p-0 overflow-hidden" glow="primary">
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-border/50">
-                <h2 className="text-lg font-semibold gradient-text">Quick Connect</h2>
+                <h2 className="text-lg font-semibold gradient-text">QR Check-In & Connect</h2>
                 <motion.button
                   onClick={onClose}
                   className="p-2 rounded-lg hover:bg-muted/50 transition-colors"

@@ -1,9 +1,10 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
-import { Download, Share2, Copy } from 'lucide-react';
-import GlassCard from './GlassCard';
+import { Download, Share2, Copy, RefreshCw } from 'lucide-react';
 import NeonButton from './NeonButton';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface QRCodeGeneratorProps {
   profileId: string;
@@ -12,13 +13,71 @@ interface QRCodeGeneratorProps {
 }
 
 const QRCodeGenerator = ({ profileId, name, onClose }: QRCodeGeneratorProps) => {
-  const profileUrl = `${window.location.origin}/connect/${profileId}`;
+  const [qrCodeId, setQrCodeId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [regenerating, setRegenerating] = useState(false);
+
+  // Generate the connect URL using the secure QR code token
+  const connectUrl = qrCodeId ? `${window.location.origin}/connect/${qrCodeId}` : '';
+
+  // Fetch or generate the user's QR code ID on mount
+  useEffect(() => {
+    fetchQRCode();
+  }, []);
+
+  const fetchQRCode = async () => {
+    setLoading(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      if (!accessToken) {
+        toast({
+          title: 'Please sign in',
+          description: 'You need to be logged in to generate your QR code.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const response = await supabase.functions.invoke('qr-connect', {
+        body: { action: 'generate' },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (response.error) {
+        console.error('QR generate error:', response.error);
+        toast({
+          title: 'Error',
+          description: 'Failed to generate QR code',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (response.data?.qr_code_id) {
+        setQrCodeId(response.data.qr_code_id);
+      }
+    } catch (error) {
+      console.error('QR fetch error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load QR code',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(profileUrl);
+    if (!connectUrl) return;
+    await navigator.clipboard.writeText(connectUrl);
     toast({
       title: 'Link Copied!',
-      description: 'Profile link copied to clipboard',
+      description: 'Share this link to connect with others',
     });
   };
 
@@ -46,21 +105,43 @@ const QRCodeGenerator = ({ profileId, name, onClose }: QRCodeGeneratorProps) => 
     }
     toast({
       title: 'QR Code Downloaded',
-      description: 'Share it at the conference!',
+      description: 'Share it to connect with others!',
     });
   };
 
   const handleShare = async () => {
+    if (!connectUrl) return;
     if (navigator.share) {
       await navigator.share({
-        title: `Connect with ${name}`,
-        text: `Scan to connect with ${name} at the conference!`,
-        url: profileUrl,
+        title: `Connect with ${name} on MeetMate`,
+        text: 'Scan to connect on MeetMate',
+        url: connectUrl,
       });
     } else {
       handleCopy();
     }
   };
+
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin mx-auto" />
+        <p className="text-muted-foreground mt-4">Generating your QR code...</p>
+      </div>
+    );
+  }
+
+  if (!qrCodeId) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">Failed to generate QR code</p>
+        <NeonButton variant="secondary" onClick={fetchQRCode} className="mt-4">
+          <RefreshCw className="w-4 h-4" />
+          <span>Try Again</span>
+        </NeonButton>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -70,8 +151,8 @@ const QRCodeGenerator = ({ profileId, name, onClose }: QRCodeGeneratorProps) => 
       className="text-center space-y-6"
     >
       <div className="space-y-2">
-        <h3 className="text-2xl font-bold gradient-text">Your Profile QR</h3>
-        <p className="text-muted-foreground">Scan to connect instantly</p>
+        <h3 className="text-2xl font-bold gradient-text">Scan to connect on MeetMate</h3>
+        <p className="text-muted-foreground">Share your QR code to instantly connect</p>
       </div>
 
       <motion.div
@@ -89,7 +170,7 @@ const QRCodeGenerator = ({ profileId, name, onClose }: QRCodeGeneratorProps) => 
       >
         <div className="p-6 bg-white rounded-2xl">
           <QRCodeSVG
-            value={profileUrl}
+            value={connectUrl}
             size={200}
             level="H"
             bgColor="#ffffff"
@@ -121,7 +202,7 @@ const QRCodeGenerator = ({ profileId, name, onClose }: QRCodeGeneratorProps) => 
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Show this QR code to connect with other attendees
+        When scanned, new users will be prompted to sign up first
       </p>
     </motion.div>
   );

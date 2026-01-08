@@ -6,153 +6,254 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface QRConnectRequest {
+  action: 'generate' | 'scan';
+  qr_code_id?: string;
+}
+
 serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
-    
+    // Create service role client for all operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Get authorization header (required for all actions in this function)
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    console.log('Auth header present:', !!authHeader, 'starts with Bearer:', authHeader?.startsWith('Bearer '));
+    
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ status: 'error', message: 'Authorization required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
+    // Extract and log token length (not the token itself for security)
+    const token = authHeader.substring('Bearer '.length).trim();
+    console.log('Token length:', token.length);
 
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Validate JWT via Auth server (pass token directly to getUser)
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+
+    if (userError || !user) {
+      console.error('Auth error:', userError);
+      return new Response(
+        JSON.stringify({ status: 'error', message: 'Invalid authentication' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+    
+    console.log('User authenticated:', user.id);
 
-    const { action, qr_code_id } = await req.json();
+    const userId = user.id;
 
+    // Parse request body
+    const { action, qr_code_id }: QRConnectRequest = await req.json();
+    console.log(`QR Connect action: ${action}, qr_code_id: ${qr_code_id}, user: ${userId}`);
+
+    // ============ GENERATE ACTION ============
+    // Returns the user's QR code ID for generating their QR code
     if (action === 'generate') {
-      // Get or create QR code for user
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('qr_code_id, full_name')
-        .eq('id', user.id)
-        .single();
+        .eq('id', userId)
+        .maybeSingle();
 
-      if (!profile?.qr_code_id) {
-        // Generate new QR code ID
-        const newQrId = crypto.randomUUID().split('-')[0];
-        await supabase
-          .from('profiles')
-          .update({ qr_code_id: newQrId })
-          .eq('id', user.id);
-        
-        return new Response(JSON.stringify({ qr_code_id: newQrId }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+      if (profileError) {
+        console.error('Profile fetch error:', profileError);
+        return new Response(
+          JSON.stringify({ status: 'error', message: 'Failed to fetch profile' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
-      return new Response(JSON.stringify({ qr_code_id: profile.qr_code_id }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      // If no qr_code_id exists, generate one (32 char hex string)
+      let qrCodeId = profile?.qr_code_id;
+      if (!qrCodeId) {
+        qrCodeId = crypto.randomUUID().replace(/-/g, '');
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ qr_code_id: qrCodeId })
+          .eq('id', userId);
+
+        if (updateError) {
+          console.error('QR code update error:', updateError);
+          return new Response(
+            JSON.stringify({ status: 'error', message: 'Failed to generate QR code' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          status: 'success',
+          qr_code_id: qrCodeId,
+          name: profile?.full_name || 'User',
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    if (action === 'scan' && qr_code_id) {
-      // Find the profile with this QR code
-      const { data: scannedProfile } = await supabase
+    // ============ SCAN ACTION ============
+    // Processes a scanned QR code and creates a connection
+    if (action === 'scan') {
+      if (!qr_code_id) {
+        return new Response(
+          JSON.stringify({ status: 'not_found', message: 'Invalid or expired QR code' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Find the profile with this QR code ID - include full profile data for display
+      const { data: targetProfile, error: targetError } = await supabase
         .from('profiles')
-        .select('id, full_name, title, company, avatar_url, skills, interests')
+        .select('id, full_name, title, company, location, bio, avatar_url, skills, interests, linkedin_url, github_url, website')
         .eq('qr_code_id', qr_code_id)
-        .single();
+        .maybeSingle();
 
-      if (!scannedProfile) {
-        return new Response(JSON.stringify({ error: 'Profile not found' }), {
-          status: 404,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+      if (targetError || !targetProfile) {
+        console.error('Target profile error:', targetError);
+        return new Response(
+          JSON.stringify({ status: 'not_found', message: 'Invalid or expired QR code' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
-      if (scannedProfile.id === user.id) {
-        return new Response(JSON.stringify({ error: 'Cannot connect with yourself' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+      // Prevent self-connection
+      if (targetProfile.id === userId) {
+        return new Response(
+          JSON.stringify({
+            status: 'self_connect',
+            message: "You can't connect with yourself",
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
-      // Check if already connected
+      // Check if connection already exists (in either direction)
       const { data: existingConnection } = await supabase
         .from('connections')
         .select('id')
-        .eq('user_id', user.id)
-        .eq('connected_user_id', scannedProfile.id)
-        .single();
+        .or(
+          `and(user_id.eq.${userId},connected_user_id.eq.${targetProfile.id}),and(user_id.eq.${targetProfile.id},connected_user_id.eq.${userId})`
+        )
+        .maybeSingle();
 
       if (existingConnection) {
-        return new Response(JSON.stringify({ 
-          message: 'Already connected',
-          profile: scannedProfile 
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return new Response(
+          JSON.stringify({
+            status: 'already_connected',
+            message: "You're already connected",
+            connectedUserName: targetProfile.full_name,
+            connectedUserProfile: {
+              id: targetProfile.id,
+              full_name: targetProfile.full_name,
+              title: targetProfile.title,
+              company: targetProfile.company,
+              location: targetProfile.location,
+              bio: targetProfile.bio,
+              avatar_url: targetProfile.avatar_url,
+              skills: targetProfile.skills || [],
+              interests: targetProfile.interests || [],
+              linkedin_url: targetProfile.linkedin_url,
+              github_url: targetProfile.github_url,
+              website: targetProfile.website,
+            },
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
-      // Create bidirectional connections
-      await supabase.from('connections').insert([
-        { user_id: user.id, connected_user_id: scannedProfile.id, connected_via: 'qr_code' },
-        { user_id: scannedProfile.id, connected_user_id: user.id, connected_via: 'qr_code' }
-      ]);
+      // Create the connection (single direction - useConnections handles both sides)
+      const { error: connectionError } = await supabase
+        .from('connections')
+        .insert({
+          user_id: userId,
+          connected_user_id: targetProfile.id,
+          connected_via: 'qr_code',
+        });
 
-      // Create notifications
-      const { data: userProfile } = await supabase
+      if (connectionError) {
+        console.error('Connection insert error:', connectionError);
+        return new Response(
+          JSON.stringify({ status: 'error', message: 'Failed to create connection' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Get current user's name for the notification
+      const { data: scannerProfile } = await supabase
         .from('profiles')
         .select('full_name')
-        .eq('id', user.id)
-        .single();
+        .eq('id', userId)
+        .maybeSingle();
 
-      await supabase.from('notifications').insert({
-        user_id: scannedProfile.id,
-        type: 'connection',
-        title: 'New Connection via QR',
-        message: `${userProfile?.full_name || 'Someone'} connected with you via QR code!`,
-        data: { user_id: user.id },
-      });
+      // Create notification for the QR code owner
+      await supabase
+        .from('notifications')
+        .insert({
+          user_id: targetProfile.id,
+          type: 'new_connection',
+          title: 'New Connection!',
+          message: `${scannerProfile?.full_name || 'Someone'} connected with you via QR code`,
+          data: { connected_user_id: userId },
+        });
 
-      // Log analytics
-      await supabase.from('analytics_events').insert({
-        user_id: user.id,
-        event_type: 'qr_connection',
-        event_data: { connected_user_id: scannedProfile.id },
-      });
+      // Log analytics event
+      await supabase
+        .from('analytics_events')
+        .insert({
+          user_id: userId,
+          event_type: 'qr_connection',
+          event_data: { connected_to: targetProfile.id },
+        });
 
-      console.log(`QR connection: ${user.id} -> ${scannedProfile.id}`);
+      console.log(`Connection created: ${userId} -> ${targetProfile.id}`);
 
-      return new Response(JSON.stringify({ 
-        success: true,
-        message: 'Connected successfully!',
-        profile: scannedProfile 
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({
+          status: 'success',
+          message: "You're now connected!",
+          connectedUserName: targetProfile.full_name,
+          connectedUserProfile: {
+            id: targetProfile.id,
+            full_name: targetProfile.full_name,
+            title: targetProfile.title,
+            company: targetProfile.company,
+            location: targetProfile.location,
+            bio: targetProfile.bio,
+            avatar_url: targetProfile.avatar_url,
+            skills: targetProfile.skills || [],
+            interests: targetProfile.interests || [],
+            linkedin_url: targetProfile.linkedin_url,
+            github_url: targetProfile.github_url,
+            website: targetProfile.website,
+          },
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    return new Response(JSON.stringify({ error: 'Invalid action' }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    // Invalid action
+    return new Response(
+      JSON.stringify({ status: 'error', message: 'Invalid action' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
 
   } catch (error) {
-    console.error('Error in qr-connect function:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.error('QR Connect error:', error);
+    return new Response(
+      JSON.stringify({ status: 'error', message: 'Internal server error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 });

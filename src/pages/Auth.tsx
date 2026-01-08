@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   Linkedin, 
   Mail, 
@@ -18,12 +18,17 @@ import GlassCard from '@/components/ui/GlassCard';
 import NeonButton from '@/components/ui/NeonButton';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 import logo from '@/assets/logo.jpeg';
 
 const Auth = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirect');
   const { session, signIn, signUp, loading } = useAuth();
-  const [isSignUp, setIsSignUp] = useState(false);
+  const { profile, loading: profileLoading } = useProfile();
+  // If coming from QR scan, default to signup mode
+  const [isSignUp, setIsSignUp] = useState(!!redirectTo);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState({
@@ -33,12 +38,29 @@ const Auth = () => {
     confirmPassword: '',
   });
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated - check profile completeness
   useEffect(() => {
-    if (session) {
-      navigate('/');
+    if (session && !profileLoading) {
+      // If there's a redirect URL (e.g., from QR code scan), go there immediately
+      if (redirectTo) {
+        navigate(redirectTo);
+      } else if (profile) {
+        // Check if profile is complete
+        const isProfileIncomplete = !profile.full_name || 
+          !profile.skills || profile.skills.length === 0 ||
+          !profile.interests || profile.interests.length === 0;
+        
+        if (isProfileIncomplete) {
+          navigate('/profile-setup');
+        } else {
+          navigate('/matches');
+        }
+      } else {
+        // No profile exists yet, go to setup
+        navigate('/profile-setup');
+      }
     }
-  }, [session, navigate]);
+  }, [session, profileLoading, profile, navigate, redirectTo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,12 +84,18 @@ const Auth = () => {
         if (error) {
           if (error.message.includes('already registered')) {
             toast({ title: 'Error', description: 'This email is already registered. Please sign in instead.', variant: 'destructive' });
+            setIsSignUp(false); // Switch to login mode
           } else {
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
           }
         } else {
-          toast({ title: 'Success', description: 'Account created! Welcome to MeetMate!' });
-          navigate('/profile-setup');
+          // Success message based on context
+          if (redirectTo) {
+            toast({ title: 'Success', description: 'Account created! Completing your connection...' });
+          } else {
+            toast({ title: 'Success', description: 'Account created! Welcome to MeetMate!' });
+          }
+          // Note: The useEffect will handle navigation once session is set
         }
       } else {
         const { error } = await signIn(form.email, form.password);
@@ -75,7 +103,7 @@ const Auth = () => {
           toast({ title: 'Error', description: 'Invalid email or password', variant: 'destructive' });
         } else {
           toast({ title: 'Welcome back!', description: 'Successfully signed in.' });
-          navigate('/');
+          // Note: The useEffect will handle navigation once session is set
         }
       }
     } catch (error: any) {
@@ -163,7 +191,10 @@ const Auth = () => {
                   {isSignUp ? 'Create Account' : 'Welcome Back'}
                 </h2>
                 <p className="text-muted-foreground">
-                  {isSignUp ? 'Join the network' : 'Sign in to continue'}
+                  {redirectTo 
+                    ? 'Sign up to complete the connection'
+                    : (isSignUp ? 'Join the network' : 'Sign in to continue')
+                  }
                 </p>
               </div>
 
