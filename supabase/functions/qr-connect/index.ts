@@ -36,7 +36,7 @@ serve(async (req) => {
     }
 
     // Extract and log token length (not the token itself for security)
-    const token = authHeader.replace('Bearer ', '');
+    const token = authHeader.substring('Bearer '.length).trim();
     console.log('Token length:', token.length);
 
     // Validate JWT via Auth server (pass token directly to getUser)

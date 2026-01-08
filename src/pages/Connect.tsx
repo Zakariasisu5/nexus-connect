@@ -72,6 +72,9 @@ const Connect = () => {
           action: 'scan',
           qr_code_id: token,
         },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
 
       if (response.error) {
