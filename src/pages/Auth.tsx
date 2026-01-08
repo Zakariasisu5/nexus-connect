@@ -25,7 +25,8 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get('redirect');
   const { session, signIn, signUp, loading } = useAuth();
-  const [isSignUp, setIsSignUp] = useState(false);
+  // If coming from QR scan, default to signup mode
+  const [isSignUp, setIsSignUp] = useState(!!redirectTo);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState({
@@ -38,7 +39,7 @@ const Auth = () => {
   // Redirect if already authenticated - respect redirect param
   useEffect(() => {
     if (session) {
-      // If there's a redirect URL (e.g., from QR code scan), go there
+      // If there's a redirect URL (e.g., from QR code scan), go there immediately
       if (redirectTo) {
         navigate(redirectTo);
       } else {
@@ -69,17 +70,18 @@ const Auth = () => {
         if (error) {
           if (error.message.includes('already registered')) {
             toast({ title: 'Error', description: 'This email is already registered. Please sign in instead.', variant: 'destructive' });
+            setIsSignUp(false); // Switch to login mode
           } else {
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
           }
         } else {
-          toast({ title: 'Success', description: 'Account created! Welcome to MeetMate!' });
-          // If there's a redirect (from QR scan), go there after signup
+          // Success message based on context
           if (redirectTo) {
-            navigate(redirectTo);
+            toast({ title: 'Success', description: 'Account created! Completing your connection...' });
           } else {
-            navigate('/profile-setup');
+            toast({ title: 'Success', description: 'Account created! Welcome to MeetMate!' });
           }
+          // Note: The useEffect will handle navigation once session is set
         }
       } else {
         const { error } = await signIn(form.email, form.password);
@@ -87,12 +89,7 @@ const Auth = () => {
           toast({ title: 'Error', description: 'Invalid email or password', variant: 'destructive' });
         } else {
           toast({ title: 'Welcome back!', description: 'Successfully signed in.' });
-          // If there's a redirect (from QR scan), go there after login
-          if (redirectTo) {
-            navigate(redirectTo);
-          } else {
-            navigate('/');
-          }
+          // Note: The useEffect will handle navigation once session is set
         }
       }
     } catch (error: any) {
