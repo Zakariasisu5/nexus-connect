@@ -19,12 +19,10 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    // Create admin client for database operations
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Get authorization header
+    // Get authorization header (required for all actions in this function)
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(
@@ -33,10 +31,31 @@ serve(async (req) => {
       );
     }
 
-    // Validate JWT using getClaims
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    
+    // Extract bearer token once (we'll feed it into the auth client via `accessToken`)
+    const token = authHeader.substring('Bearer '.length).trim();
+
+    // IMPORTANT:
+    // - Use ANON client to validate user JWTs (signing keys)
+    // - Use SERVICE ROLE client for DB writes (bypasses RLS) after we've identified the user.
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+      // Ensures auth-js has a token available in non-browser runtimes
+      accessToken: async () => token,
+    });
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Keep existing code below using `supabase` for DB operations
+    const supabase = supabaseAdmin;
+
+    // Validate JWT (returns verified JWT claims)
+    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims();
+
     if (claimsError || !claimsData?.claims?.sub) {
       console.error('Auth error:', claimsError);
       return new Response(
