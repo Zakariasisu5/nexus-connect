@@ -45,6 +45,14 @@ export default function App() {
         (event.reason instanceof Error ? event.reason.message : String(event.reason)) ||
         "Unexpected error";
 
+      // Handle dynamic import failures (stale cache)
+      if (msg.includes("Failed to fetch dynamically imported module")) {
+        // Reload the page to get fresh assets
+        window.location.reload();
+        event.preventDefault();
+        return;
+      }
+
       // Most common user-facing issue: AI rate limiting
       if (msg.includes("429") || msg.toLowerCase().includes("rate limit")) {
         toast({
