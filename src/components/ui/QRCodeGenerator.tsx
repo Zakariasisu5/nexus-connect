@@ -28,8 +28,23 @@ const QRCodeGenerator = ({ profileId, name, onClose }: QRCodeGeneratorProps) => 
   const fetchQRCode = async () => {
     setLoading(true);
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      if (!accessToken) {
+        toast({
+          title: 'Please sign in',
+          description: 'You need to be logged in to generate your QR code.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       const response = await supabase.functions.invoke('qr-connect', {
         body: { action: 'generate' },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       });
 
       if (response.error) {
