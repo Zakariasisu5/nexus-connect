@@ -31,21 +31,25 @@ serve(async (req) => {
       );
     }
 
-    // Extract bearer token once (we'll feed it into the auth client via `accessToken`)
+    // Extract bearer token once
     const token = authHeader.substring('Bearer '.length).trim();
+    if (!token) {
+      console.error('Auth error: empty bearer token');
+      return new Response(
+        JSON.stringify({ status: 'error', message: 'Invalid authentication' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // IMPORTANT:
-    // - Use ANON client to validate user JWTs (signing keys)
+    // - Use ANON client to validate user JWTs
     // - Use SERVICE ROLE client for DB writes (bypasses RLS) after we've identified the user.
     const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
       auth: {
         persistSession: false,
         autoRefreshToken: false,
         detectSessionInUrl: false,
       },
-      // Ensures auth-js has a token available in non-browser runtimes
-      accessToken: async () => token,
     });
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
@@ -53,18 +57,18 @@ serve(async (req) => {
     // Keep existing code below using `supabase` for DB operations
     const supabase = supabaseAdmin;
 
-    // Validate JWT (returns verified JWT claims)
-    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims();
+    // Validate JWT via Auth server
+    const { data: userRes, error: userError } = await supabaseAuth.auth.getUser(token);
 
-    if (claimsError || !claimsData?.claims?.sub) {
-      console.error('Auth error:', claimsError);
+    if (userError || !userRes?.user?.id) {
+      console.error('Auth error:', userError);
       return new Response(
         JSON.stringify({ status: 'error', message: 'Invalid authentication' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const userId = claimsData.claims.sub as string;
+    const userId = userRes.user.id;
 
     // Parse request body
     const { action, qr_code_id }: QRConnectRequest = await req.json();
