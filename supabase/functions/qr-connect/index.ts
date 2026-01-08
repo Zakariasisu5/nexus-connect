@@ -26,29 +26,30 @@ serve(async (req) => {
 
     // Get authorization header
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    if (!authHeader?.startsWith('Bearer ')) {
       return new Response(
         JSON.stringify({ status: 'error', message: 'Authorization required' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
+    // Validate JWT using getClaims
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
     
-    if (userError || !user) {
-      console.error('Auth error:', userError);
+    if (claimsError || !claimsData?.claims?.sub) {
+      console.error('Auth error:', claimsError);
       return new Response(
         JSON.stringify({ status: 'error', message: 'Invalid authentication' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    const userId = claimsData.claims.sub as string;
+
     // Parse request body
     const { action, qr_code_id }: QRConnectRequest = await req.json();
-    console.log(`QR Connect action: ${action}, qr_code_id: ${qr_code_id}, user: ${user.id}`);
+    console.log(`QR Connect action: ${action}, qr_code_id: ${qr_code_id}, user: ${userId}`);
 
     // ============ GENERATE ACTION ============
     // Returns the user's QR code ID for generating their QR code
@@ -56,7 +57,7 @@ serve(async (req) => {
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('qr_code_id, full_name')
-        .eq('id', user.id)
+        .eq('id', userId)
         .maybeSingle();
 
       if (profileError) {
@@ -74,7 +75,7 @@ serve(async (req) => {
         const { error: updateError } = await supabase
           .from('profiles')
           .update({ qr_code_id: qrCodeId })
-          .eq('id', user.id);
+          .eq('id', userId);
 
         if (updateError) {
           console.error('QR code update error:', updateError);
@@ -121,7 +122,7 @@ serve(async (req) => {
       }
 
       // Prevent self-connection
-      if (targetProfile.id === user.id) {
+      if (targetProfile.id === userId) {
         return new Response(
           JSON.stringify({
             status: 'self_connect',
@@ -136,7 +137,7 @@ serve(async (req) => {
         .from('connections')
         .select('id')
         .or(
-          `and(user_id.eq.${user.id},connected_user_id.eq.${targetProfile.id}),and(user_id.eq.${targetProfile.id},connected_user_id.eq.${user.id})`
+          `and(user_id.eq.${userId},connected_user_id.eq.${targetProfile.id}),and(user_id.eq.${targetProfile.id},connected_user_id.eq.${userId})`
         )
         .maybeSingle();
 
@@ -155,7 +156,7 @@ serve(async (req) => {
       const { error: connectionError } = await supabase
         .from('connections')
         .insert({
-          user_id: user.id,
+          user_id: userId,
           connected_user_id: targetProfile.id,
           connected_via: 'qr_code',
         });
@@ -172,7 +173,7 @@ serve(async (req) => {
       const { data: scannerProfile } = await supabase
         .from('profiles')
         .select('full_name')
-        .eq('id', user.id)
+        .eq('id', userId)
         .maybeSingle();
 
       // Create notification for the QR code owner
@@ -183,19 +184,19 @@ serve(async (req) => {
           type: 'new_connection',
           title: 'New Connection!',
           message: `${scannerProfile?.full_name || 'Someone'} connected with you via QR code`,
-          data: { connected_user_id: user.id },
+          data: { connected_user_id: userId },
         });
 
       // Log analytics event
       await supabase
         .from('analytics_events')
         .insert({
-          user_id: user.id,
+          user_id: userId,
           event_type: 'qr_connection',
           event_data: { connected_to: targetProfile.id },
         });
 
-      console.log(`Connection created: ${user.id} -> ${targetProfile.id}`);
+      console.log(`Connection created: ${userId} -> ${targetProfile.id}`);
 
       return new Response(
         JSON.stringify({
