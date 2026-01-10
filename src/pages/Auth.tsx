@@ -38,29 +38,21 @@ const Auth = () => {
     confirmPassword: '',
   });
 
-  // Redirect if already authenticated - check profile completeness
+  // Redirect if already authenticated
   useEffect(() => {
     if (session && !profileLoading) {
       // If there's a redirect URL (e.g., from QR code scan), go there immediately
       if (redirectTo) {
         navigate(redirectTo);
-      } else if (profile) {
-        // Check if profile is complete
-        const isProfileIncomplete = !profile.full_name || 
-          !profile.skills || profile.skills.length === 0 ||
-          !profile.interests || profile.interests.length === 0;
-        
-        if (isProfileIncomplete) {
-          navigate('/profile-setup');
-        } else {
-          navigate('/matches');
-        }
-      } else {
-        // No profile exists yet, go to setup
+      } else if (isSignUp) {
+        // After signup, always go to profile setup
         navigate('/profile-setup');
+      } else {
+        // After signin, go to matches (profile already exists for returning users)
+        navigate('/matches');
       }
     }
-  }, [session, profileLoading, profile, navigate, redirectTo]);
+  }, [session, profileLoading, navigate, redirectTo, isSignUp]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
