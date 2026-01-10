@@ -11,7 +11,6 @@ import {
 import Layout from '@/components/Layout';
 import GlassCard from '@/components/ui/GlassCard';
 import NeonButton from '@/components/ui/NeonButton';
-import { useDemoNotifications } from '@/hooks/useDemoNotifications';
 import { useAuth } from '@/hooks/useAuth';
 import Event from ".././assets/tech.png"
 import Conference from ".././assets/techconnect.png"
@@ -81,8 +80,6 @@ const features = [
 
 const Index = () => {
   const { session } = useAuth();
-  // Enable demo notifications only for non-authenticated users
-  useDemoNotifications(!session);
 
   const stats = [
     { label: 'Events Attended', value: '1.2k' },
