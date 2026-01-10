@@ -188,14 +188,14 @@ Return ONLY valid JSON array, no other text.`;
     // Sort by score
     matches.sort((a: any, b: any) => b.match_score - a.match_score);
 
-    // Store matches in database
+    // Store matches in database with 'suggested' status (user must click Connect to make it 'pending')
     for (const match of matches.slice(0, 10)) {
       const { profile, ...matchData } = match;
       await supabase
         .from('matches')
         .upsert({
           ...matchData,
-          status: 'pending',
+          status: 'suggested',
         }, { onConflict: 'user_id,matched_user_id,event_id' });
     }
 
