@@ -174,12 +174,13 @@ export function useMatches() {
     }
   }, [session?.user?.id, loadMatches]);
 
-  // Subscribe to realtime updates
+  // Subscribe to realtime updates for both outgoing and incoming matches
   useEffect(() => {
     if (!session?.user?.id) return;
 
-    const channel = supabase
-      .channel('matches-updates')
+    // Subscribe to matches where user is the initiator
+    const outgoingChannel = supabase
+      .channel('matches-outgoing')
       .on(
         'postgres_changes',
         {
@@ -194,8 +195,26 @@ export function useMatches() {
       )
       .subscribe();
 
+    // Subscribe to matches where user is the recipient (incoming requests)
+    const incomingChannel = supabase
+      .channel('matches-incoming')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'matches',
+          filter: `matched_user_id=eq.${session.user.id}`,
+        },
+        () => {
+          loadMatches();
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(outgoingChannel);
+      supabase.removeChannel(incomingChannel);
     };
   }, [session?.user?.id, loadMatches]);
 
