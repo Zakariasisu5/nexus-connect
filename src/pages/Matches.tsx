@@ -24,7 +24,7 @@ import { useMatches } from '@/hooks/useMatches';
 import { useConnections } from '@/hooks/useConnections';
 import { useAnalytics } from '@/hooks/useAnalytics';
 
-const filters = ['All', 'High Match (90%+)', 'Connected', 'Pending'];
+const filters = ['All', 'High Match (90%+)', 'Connected', 'Pending', 'Incoming Requests'];
 
 const Matches = () => {
   const navigate = useNavigate();
@@ -78,6 +78,9 @@ const Matches = () => {
   const filteredMatches = matches.filter((match) => {
     const matchedProfile = match.matched_profile;
     if (!matchedProfile) return false;
+    
+    // Hide rejected matches
+    if (match.status === 'rejected') return false;
 
     const matchesSearch = 
       (matchedProfile.full_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
@@ -85,11 +88,15 @@ const Matches = () => {
       (matchedProfile.company?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     
     const connected = isConnected(match.matched_user_id);
+    const isPending = match.status === 'pending';
+    const isSuggested = match.status === 'suggested' || !match.status;
+    
     const matchesFilter =
       activeFilter === 'All' ||
       (activeFilter === 'High Match (90%+)' && (match.match_score || 0) >= 90) ||
       (activeFilter === 'Connected' && connected) ||
-      (activeFilter === 'Pending' && match.status === 'pending' && !connected);
+      (activeFilter === 'Pending' && isPending && !connected && !match.is_incoming) ||
+      (activeFilter === 'Incoming Requests' && isPending && match.is_incoming && !connected);
 
     return matchesSearch && matchesFilter;
   });
