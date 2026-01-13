@@ -41,9 +41,15 @@ const Auth = () => {
   // Redirect if already authenticated
   useEffect(() => {
     if (session && !profileLoading) {
+      // Check for pending event token (from event QR scan)
+      const pendingEventToken = sessionStorage.getItem('pendingEventToken');
+      
       // If there's a redirect URL (e.g., from QR code scan), go there immediately
       if (redirectTo) {
         navigate(redirectTo);
+      } else if (pendingEventToken) {
+        // Redirect to event join page with the pending token
+        navigate(`/event/join/${pendingEventToken}`);
       } else if (isSignUp) {
         // After signup, always go to profile setup
         navigate('/profile-setup');

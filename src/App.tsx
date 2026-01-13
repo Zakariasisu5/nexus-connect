@@ -22,6 +22,9 @@ const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Cookies = lazy(() => import("./pages/Cookies"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Events = lazy(() => import("./pages/Events"));
+const EventJoin = lazy(() => import("./pages/EventJoin"));
+const EventSpace = lazy(() => import("./pages/EventSpace"));
 import { AuthProvider } from "@/hooks/useAuth";
 import { useMessageNotifications } from "@/hooks/useMessageNotifications";
 import { useTheme } from "@/hooks/useTheme";
@@ -102,6 +105,9 @@ export default function App() {
                     <Route path="/privacy" element={<Privacy />} />
                     <Route path="/terms" element={<Terms />} />
                     <Route path="/cookies" element={<Cookies />} />
+                    <Route path="/events" element={<Events />} />
+                    <Route path="/events/:eventId" element={<EventSpace />} />
+                    <Route path="/event/join/:token" element={<EventJoin />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>
