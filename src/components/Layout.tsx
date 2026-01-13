@@ -10,7 +10,8 @@ import {
   Menu,
   X,
   QrCode,
-  MessageCircle
+  MessageCircle,
+  CalendarDays
 } from 'lucide-react';
 import AnimatedBackground from './ui/AnimatedBackground';
 import { AIChatbot } from './ui/AIChatbot';
@@ -27,6 +28,7 @@ interface LayoutProps {
 
 const navItems = [
   { path: '/', label: 'Home', icon: Home },
+  { path: '/events', label: 'Events', icon: CalendarDays },
   { path: '/matches', label: 'Matches', icon: Users },
   { path: '/messages', label: 'Messages', icon: MessageCircle },
   { path: '/schedule', label: 'Schedule', icon: Calendar },

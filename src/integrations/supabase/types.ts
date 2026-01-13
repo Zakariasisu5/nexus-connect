@@ -116,6 +116,7 @@ export type Database = {
           connected_user_id: string
           connected_via: string | null
           created_at: string
+          event_id: string | null
           id: string
           match_id: string | null
           notes: string | null
@@ -125,6 +126,7 @@ export type Database = {
           connected_user_id: string
           connected_via?: string | null
           created_at?: string
+          event_id?: string | null
           id?: string
           match_id?: string | null
           notes?: string | null
@@ -134,6 +136,7 @@ export type Database = {
           connected_user_id?: string
           connected_via?: string | null
           created_at?: string
+          event_id?: string | null
           id?: string
           match_id?: string | null
           notes?: string | null
@@ -218,6 +221,7 @@ export type Database = {
           location: string | null
           name: string
           organizer_id: string | null
+          qr_token: string | null
           start_date: string | null
         }
         Insert: {
@@ -229,6 +233,7 @@ export type Database = {
           location?: string | null
           name: string
           organizer_id?: string | null
+          qr_token?: string | null
           start_date?: string | null
         }
         Update: {
@@ -240,6 +245,7 @@ export type Database = {
           location?: string | null
           name?: string
           organizer_id?: string | null
+          qr_token?: string | null
           start_date?: string | null
         }
         Relationships: []
