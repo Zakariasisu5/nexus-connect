@@ -40,11 +40,19 @@ export function useEvents() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Generate a secure random token for QR code
-  const generateQrToken = (): string => {
-    const array = new Uint8Array(24);
-    crypto.getRandomValues(array);
-    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+  // Generate a URL-friendly slug from event name
+  const generateEventSlug = (name: string): string => {
+    const slug = name
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '') // Remove special characters
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single
+      .substring(0, 50); // Limit length
+    
+    // Add a short random suffix to ensure uniqueness
+    const suffix = Math.random().toString(36).substring(2, 6);
+    return `${slug}-${suffix}`;
   };
 
   // Load events the user has created (organizer)
@@ -117,7 +125,7 @@ export function useEvents() {
     if (!session?.user?.id) return null;
 
     try {
-      const qrToken = generateQrToken();
+      const qrToken = generateEventSlug(eventData.name);
       
       const { data, error: insertError } = await supabase
         .from('events')
