@@ -2,6 +2,37 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
+// Generate a URL-friendly slug from event name (exported for use in components)
+export const generateSlugFromName = (name: string): string => {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single
+    .substring(0, 50); // Limit length
+};
+
+// Generate event slug with unique suffix
+const generateEventSlug = (name: string, customSlug?: string): string => {
+  // If custom slug provided, use it with a short suffix for uniqueness
+  if (customSlug && customSlug.trim()) {
+    const cleanSlug = customSlug
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w-]/g, '')
+      .replace(/-+/g, '-')
+      .substring(0, 50);
+    const suffix = Math.random().toString(36).substring(2, 6);
+    return `${cleanSlug}-${suffix}`;
+  }
+  
+  // Auto-generate from name
+  const slug = generateSlugFromName(name);
+  const suffix = Math.random().toString(36).substring(2, 6);
+  return `${slug}-${suffix}`;
+};
+
 export interface Event {
   id: string;
   name: string;
@@ -39,21 +70,6 @@ export function useEvents() {
   const [myEvents, setMyEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Generate a URL-friendly slug from event name
-  const generateEventSlug = (name: string): string => {
-    const slug = name
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, '') // Remove special characters
-      .replace(/\s+/g, '-') // Replace spaces with hyphens
-      .replace(/-+/g, '-') // Replace multiple hyphens with single
-      .substring(0, 50); // Limit length
-    
-    // Add a short random suffix to ensure uniqueness
-    const suffix = Math.random().toString(36).substring(2, 6);
-    return `${slug}-${suffix}`;
-  };
 
   // Load events the user has created (organizer)
   const loadMyEvents = useCallback(async () => {
@@ -120,12 +136,13 @@ export function useEvents() {
       location?: string;
       start_date?: string;
       end_date?: string;
+      custom_slug?: string;
     }
   ): Promise<Event | null> => {
     if (!session?.user?.id) return null;
 
     try {
-      const qrToken = generateEventSlug(eventData.name);
+      const qrToken = generateEventSlug(eventData.name, eventData.custom_slug);
       
       const { data, error: insertError } = await supabase
         .from('events')
