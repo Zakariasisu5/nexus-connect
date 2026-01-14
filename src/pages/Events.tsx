@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -9,13 +9,14 @@ import {
   QrCode, 
   Share2,
   Loader2,
-  X
+  X,
+  Link
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import GlassCard from '@/components/ui/GlassCard';
 import NeonButton from '@/components/ui/NeonButton';
 import { useAuth } from '@/hooks/useAuth';
-import { useEvents, Event } from '@/hooks/useEvents';
+import { useEvents, Event, generateSlugFromName } from '@/hooks/useEvents';
 import { toast } from '@/hooks/use-toast';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -27,13 +28,23 @@ const Events = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState<Event | null>(null);
   const [creating, setCreating] = useState(false);
+  const [customSlugEnabled, setCustomSlugEnabled] = useState(false);
   const [form, setForm] = useState({
     name: '',
     description: '',
     location: '',
     start_date: '',
     end_date: '',
+    custom_slug: '',
   });
+
+  // Auto-generate slug preview from event name
+  useEffect(() => {
+    if (!customSlugEnabled && form.name) {
+      const autoSlug = generateSlugFromName(form.name);
+      setForm(prev => ({ ...prev, custom_slug: autoSlug }));
+    }
+  }, [form.name, customSlugEnabled]);
 
   // Redirect to auth if not logged in
   if (!authLoading && !session) {
@@ -60,6 +71,7 @@ const Events = () => {
         location: form.location || undefined,
         start_date: form.start_date || undefined,
         end_date: form.end_date || undefined,
+        custom_slug: form.custom_slug || undefined,
       });
 
       if (newEvent) {
@@ -68,7 +80,8 @@ const Events = () => {
           description: 'Your event is ready. Share the QR code to invite attendees.',
         });
         setShowCreateModal(false);
-        setForm({ name: '', description: '', location: '', start_date: '', end_date: '' });
+        setForm({ name: '', description: '', location: '', start_date: '', end_date: '', custom_slug: '' });
+        setCustomSlugEnabled(false);
         setShowQRModal(newEvent);
       }
     } finally {
@@ -352,6 +365,47 @@ const Events = () => {
                         className="neon-input"
                       />
                     </div>
+                  </div>
+
+                  {/* Custom Event Link */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-foreground">
+                        Event Link
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setCustomSlugEnabled(!customSlugEnabled)}
+                        className="text-xs text-primary hover:text-primary/80 transition-colors"
+                      >
+                        {customSlugEnabled ? 'Use auto-generated' : 'Customize'}
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded-l-lg border border-r-0 border-border/50">
+                        <Link className="w-3 h-3" />
+                        <span>/event/join/</span>
+                      </div>
+                      <input
+                        type="text"
+                        value={form.custom_slug}
+                        onChange={(e) => {
+                          const value = e.target.value
+                            .toLowerCase()
+                            .replace(/[^\w-]/g, '')
+                            .replace(/\s+/g, '-');
+                          setForm({ ...form, custom_slug: value });
+                        }}
+                        disabled={!customSlugEnabled}
+                        className={`neon-input flex-1 rounded-l-none ${!customSlugEnabled ? 'opacity-60' : ''}`}
+                        placeholder="my-awesome-event"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {customSlugEnabled 
+                        ? 'Use letters, numbers, and hyphens only'
+                        : 'Auto-generated from event name'}
+                    </p>
                   </div>
 
                   <NeonButton type="submit" className="w-full" disabled={creating}>
