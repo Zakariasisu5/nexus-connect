@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, QrCode, Scan } from 'lucide-react';
 import GlassCard from './GlassCard';
@@ -18,10 +19,42 @@ type TabType = 'share' | 'scan';
 
 const QRCodeModal = ({ isOpen, onClose, profileId, profileName, onScanResult }: QRCodeModalProps) => {
   const [activeTab, setActiveTab] = useState<TabType>('share');
+  const navigate = useNavigate();
 
-  const handleScan = (scannedProfileId: string) => {
-    onScanResult?.(scannedProfileId);
+  const handleScan = (scannedData: string) => {
     onClose();
+    
+    // Extract the path from the full URL
+    try {
+      const url = new URL(scannedData);
+      const path = url.pathname;
+      
+      // Navigate to the scanned URL path to process the connection/event
+      if (path.startsWith('/connect/') || path.startsWith('/event/join/')) {
+        navigate(path);
+      } else {
+        // Fallback: try treating it as a direct path
+        navigate(scannedData);
+      }
+    } catch {
+      // If it's not a valid URL, try treating it as a path
+      if (scannedData.startsWith('/')) {
+        navigate(scannedData);
+      } else if (scannedData.includes('/connect/') || scannedData.includes('/event/join/')) {
+        // Extract path from partial URL
+        const connectMatch = scannedData.match(/\/connect\/([a-zA-Z0-9-]+)/);
+        const eventMatch = scannedData.match(/\/event\/join\/([a-zA-Z0-9-]+)/);
+        
+        if (connectMatch) {
+          navigate(`/connect/${connectMatch[1]}`);
+        } else if (eventMatch) {
+          navigate(`/event/join/${eventMatch[1]}`);
+        }
+      }
+    }
+    
+    // Still call the callback for any custom handling
+    onScanResult?.(scannedData);
   };
 
   return (
