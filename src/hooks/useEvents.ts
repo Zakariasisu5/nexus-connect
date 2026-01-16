@@ -316,12 +316,90 @@ export function useEvents() {
     }
   }, [session?.user?.id, loadMyEvents, loadJoinedEvents]);
 
+  // Delete an event (organizer only)
+  const deleteEvent = useCallback(async (eventId: string): Promise<boolean> => {
+    if (!session?.user?.id) return false;
+
+    try {
+      // First verify the user is the organizer
+      const { data: event } = await supabase
+        .from('events')
+        .select('organizer_id')
+        .eq('id', eventId)
+        .single();
+
+      if (event?.organizer_id !== session.user.id) {
+        console.error('Not authorized to delete this event');
+        return false;
+      }
+
+      // Delete event attendees first (foreign key constraint)
+      await supabase
+        .from('event_attendees')
+        .delete()
+        .eq('event_id', eventId);
+
+      // Delete connections made at this event
+      await supabase
+        .from('connections')
+        .delete()
+        .eq('event_id', eventId);
+
+      // Delete the event
+      const { error: deleteError } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', eventId);
+
+      if (deleteError) throw deleteError;
+
+      await loadMyEvents();
+      return true;
+    } catch (err: any) {
+      console.error('Error deleting event:', err);
+      setError(err.message);
+      return false;
+    }
+  }, [session?.user?.id, loadMyEvents]);
+
+  // End an event (set is_active to false)
+  const endEvent = useCallback(async (eventId: string): Promise<boolean> => {
+    if (!session?.user?.id) return false;
+
+    try {
+      const { error: updateError } = await supabase
+        .from('events')
+        .update({ is_active: false })
+        .eq('id', eventId)
+        .eq('organizer_id', session.user.id);
+
+      if (updateError) throw updateError;
+
+      await loadMyEvents();
+      return true;
+    } catch (err: any) {
+      console.error('Error ending event:', err);
+      setError(err.message);
+      return false;
+    }
+  }, [session?.user?.id, loadMyEvents]);
+
+  // Check if event has ended (based on end_date or is_active)
+  const isEventEnded = useCallback((event: Event): boolean => {
+    if (!event.is_active) return true;
+    if (event.end_date && new Date(event.end_date) < new Date()) return true;
+    return false;
+  }, []);
+
   return {
     events,
     myEvents,
     loading,
     error,
     createEvent,
+    deleteEvent,
+    endEvent,
+    isEventEnded,
     getEventByToken,
     joinEvent,
     hasJoinedEvent,
