@@ -11,7 +11,14 @@ import {
   Award,
   Download,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  MapPin,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  Trash2,
+  QrCode,
+  ArrowRight
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import GlassCard from '@/components/ui/GlassCard';
@@ -19,6 +26,8 @@ import NeonButton from '@/components/ui/NeonButton';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useAnalytics } from '@/hooks/useAnalytics';
+import { useEvents } from '@/hooks/useEvents';
+import { toast } from '@/hooks/use-toast';
 
 interface Metric {
   label: string;
@@ -57,12 +66,15 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { session, loading: authLoading } = useAuth();
   const { trackPageView } = useAnalytics();
+  const { myEvents, loading: eventsLoading, deleteEvent, endEvent, isEventEnded, loadMyEvents } = useEvents();
   const [selectedPeriod, setSelectedPeriod] = useState('week');
   const [animatedValues, setAnimatedValues] = useState<Record<string, number>>({});
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [topMatches, setTopMatches] = useState<any[]>([]);
   const [meetings, setMeetings] = useState<any[]>([]);
+  const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
+  const [endingEventId, setEndingEventId] = useState<string | null>(null);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -383,6 +395,138 @@ const Dashboard = () => {
             </motion.div>
           ))}
         </div>
+
+        {/* My Events Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+        >
+          <GlassCard className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold">My Events</h3>
+              <NeonButton size="sm" onClick={() => navigate('/events')}>
+                <span>View All</span>
+                <ArrowRight className="w-4 h-4" />
+              </NeonButton>
+            </div>
+            
+            {eventsLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+              </div>
+            ) : myEvents.length === 0 ? (
+              <div className="text-center py-8">
+                <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground mb-4">No events created yet</p>
+                <NeonButton size="sm" onClick={() => navigate('/events')}>
+                  Create Your First Event
+                </NeonButton>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {myEvents.slice(0, 6).map((event, index) => {
+                  const ended = isEventEnded(event);
+                  const isUpcoming = event.start_date && new Date(event.start_date) > new Date();
+                  
+                  let statusLabel = 'Active';
+                  let statusColor = 'bg-accent/20 text-accent';
+                  let StatusIcon = AlertCircle;
+                  
+                  if (ended) {
+                    statusLabel = 'Ended';
+                    statusColor = 'bg-muted text-muted-foreground';
+                    StatusIcon = CheckCircle;
+                  } else if (isUpcoming) {
+                    statusLabel = 'Upcoming';
+                    statusColor = 'bg-primary/20 text-primary';
+                    StatusIcon = Clock;
+                  }
+
+                  return (
+                    <motion.div
+                      key={event.id}
+                      className={`p-4 rounded-xl border border-border/50 bg-card/50 hover:border-primary/50 transition-all cursor-pointer ${ended ? 'opacity-75' : ''}`}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 + index * 0.05 }}
+                      onClick={() => navigate(`/events/${event.id}`)}
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <h4 className="font-semibold text-foreground truncate">{event.name}</h4>
+                        <span className={`text-xs ${statusColor} px-2 py-1 rounded-full flex items-center gap-1 shrink-0`}>
+                          <StatusIcon className="w-3 h-3" />
+                          {statusLabel}
+                        </span>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mb-3">
+                        {event.start_date && (
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {new Date(event.start_date).toLocaleDateString()}
+                          </span>
+                        )}
+                        {event.location && (
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            {event.location}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        {!ended && (
+                          <button
+                            className="p-2 rounded-lg bg-accent/10 hover:bg-accent/20 text-accent transition-colors"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              setEndingEventId(event.id);
+                              const success = await endEvent(event.id);
+                              setEndingEventId(null);
+                              if (success) {
+                                toast({ title: 'Event ended', description: 'Attendees have been notified.' });
+                              }
+                            }}
+                            disabled={endingEventId === event.id}
+                            title="End Event"
+                          >
+                            {endingEventId === event.id ? (
+                              <div className="w-4 h-4 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+                            ) : (
+                              <CheckCircle className="w-4 h-4" />
+                            )}
+                          </button>
+                        )}
+                        <button
+                          className="p-2 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive transition-colors"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!confirm('Delete this event permanently?')) return;
+                            setDeletingEventId(event.id);
+                            const success = await deleteEvent(event.id);
+                            setDeletingEventId(null);
+                            if (success) {
+                              toast({ title: 'Event deleted' });
+                            }
+                          }}
+                          disabled={deletingEventId === event.id}
+                          title="Delete Event"
+                        >
+                          {deletingEventId === event.id ? (
+                            <div className="w-4 h-4 border-2 border-destructive/30 border-t-destructive rounded-full animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </GlassCard>
+        </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Chart */}
