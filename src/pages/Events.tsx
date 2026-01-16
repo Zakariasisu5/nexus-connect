@@ -23,6 +23,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEvents, Event, generateSlugFromName } from '@/hooks/useEvents';
 import { toast } from '@/hooks/use-toast';
 import { QRCodeSVG } from 'qrcode.react';
+import { APP_URL } from '@/lib/constants';
 
 const Events = () => {
   const navigate = useNavigate();
@@ -97,7 +98,7 @@ const Events = () => {
 
   const copyShareLink = (event: Event) => {
     if (!event.qr_token) return;
-    const url = `${window.location.origin}/event/join/${event.qr_token}`;
+    const url = `${APP_URL}/event/join/${event.qr_token}`;
     navigator.clipboard.writeText(url);
     toast({
       title: 'Link copied!',
@@ -573,7 +574,7 @@ const Events = () => {
                 
                 <div className="bg-white p-4 rounded-xl inline-block mb-6">
                   <QRCodeSVG
-                    value={`${window.location.origin}/event/join/${showQRModal.qr_token}`}
+                    value={`${APP_URL}/event/join/${showQRModal.qr_token}`}
                     size={200}
                     level="H"
                   />
