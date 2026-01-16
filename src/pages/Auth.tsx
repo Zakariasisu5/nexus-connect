@@ -60,9 +60,28 @@ const Auth = () => {
     }
   }, [session, profileLoading, navigate, redirectTo, isSignUp]);
 
+  // Email validation regex
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(email.trim());
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
+    // Validate email format
+    if (!form.email.trim()) {
+      toast({ title: 'Error', description: 'Please enter your email address', variant: 'destructive' });
+      setIsLoading(false);
+      return;
+    }
+
+    if (!isValidEmail(form.email)) {
+      toast({ title: 'Invalid Email', description: 'Please enter a valid email address (e.g., name@example.com)', variant: 'destructive' });
+      setIsLoading(false);
+      return;
+    }
 
     if (isSignUp && form.password !== form.confirmPassword) {
       toast({ title: 'Error', description: 'Passwords do not match', variant: 'destructive' });
