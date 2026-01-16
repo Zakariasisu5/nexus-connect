@@ -22,6 +22,7 @@ import { useConnections } from '@/hooks/useConnections';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { QRCodeSVG } from 'qrcode.react';
+import { APP_URL } from '@/lib/constants';
 
 const EventSpace = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -138,7 +139,7 @@ const EventSpace = () => {
 
   const copyShareLink = () => {
     if (!event?.qr_token) return;
-    const url = `${window.location.origin}/event/join/${event.qr_token}`;
+    const url = `${APP_URL}/event/join/${event.qr_token}`;
     navigator.clipboard.writeText(url);
     toast({
       title: 'Link copied!',
@@ -235,7 +236,7 @@ const EventSpace = () => {
               <h3 className="text-lg font-semibold mb-4">Scan to join this event on MeetMate</h3>
               <div className="bg-white p-4 rounded-xl inline-block">
                 <QRCodeSVG
-                  value={`${window.location.origin}/event/join/${event.qr_token}`}
+                  value={`${APP_URL}/event/join/${event.qr_token}`}
                   size={200}
                   level="H"
                 />

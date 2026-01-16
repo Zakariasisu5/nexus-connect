@@ -5,6 +5,7 @@ import { Download, Share2, Copy, RefreshCw } from 'lucide-react';
 import NeonButton from './NeonButton';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { APP_URL } from '@/lib/constants';
 
 interface QRCodeGeneratorProps {
   profileId: string;
@@ -18,7 +19,7 @@ const QRCodeGenerator = ({ profileId, name, onClose }: QRCodeGeneratorProps) => 
   const [regenerating, setRegenerating] = useState(false);
 
   // Generate the connect URL using the secure QR code token
-  const connectUrl = qrCodeId ? `${window.location.origin}/connect/${qrCodeId}` : '';
+  const connectUrl = qrCodeId ? `${APP_URL}/connect/${qrCodeId}` : '';
 
   // Fetch or generate the user's QR code ID on mount
   useEffect(() => {
