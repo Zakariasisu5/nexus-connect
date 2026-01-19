@@ -2,7 +2,8 @@
 ## welcome to MeetMate
 
 MeetMate is an AI-powered networking platform designed to make professional connections smarter and more meaningful. Whether at conferences, events, or online communities, MeetMate helps users create profiles, connect, chat, schedule meetings, and discover opportunities — with insights and responses.
-
+![Screenshot_20260116-024714](https://github.com/user-attachments/assets/86b9c4be-3140-4b0f-adeb-d91cbce841e5)
+  
 ✨ Features
 
 👤 Smart Profiles – Build and showcase your professional identity with skills, interests, goals, and contact links.
