@@ -290,7 +290,7 @@ const Index = () => {
             {trustedCompanies.map((company, index) => (
               <motion.div
                 key={company}
-                className="text-xl md:text-2xl font-bold text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                className="text-xl md:text-2xl font-bold text-muted-foreground/70 hover:text-foreground transition-colors"
                 initial={{ opacity: 0, y: 10 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
