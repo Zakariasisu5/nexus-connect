@@ -19,6 +19,7 @@ import NeonButton from '@/components/ui/NeonButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useEvents, Event, EventParticipant } from '@/hooks/useEvents';
 import { useConnections } from '@/hooks/useConnections';
+import { useMatches } from '@/hooks/useMatches';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { QRCodeSVG } from 'qrcode.react';
@@ -29,7 +30,8 @@ const EventSpace = () => {
   const navigate = useNavigate();
   const { session } = useAuth();
   const { getEventParticipants, getEventStats } = useEvents();
-  const { createConnection, isConnected } = useConnections();
+  const { isConnected } = useConnections();
+  const { matches, updateMatchStatus } = useMatches();
 
   const [event, setEvent] = useState<Event | null>(null);
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
@@ -109,28 +111,56 @@ const EventSpace = () => {
     };
   }, [eventId, loadEventData]);
 
+  // Get match status for a participant
+  const getMatchStatus = useCallback((userId: string): { status: string | null; matchId: string | null; isIncoming: boolean } => {
+    const match = matches.find(m => m.matched_user_id === userId);
+    if (match) {
+      return { status: match.status, matchId: match.id, isIncoming: !!match.is_incoming };
+    }
+    return { status: null, matchId: null, isIncoming: false };
+  }, [matches]);
+
   const handleConnect = async (userId: string) => {
-    if (!eventId) return;
+    if (!eventId || !session?.user?.id) return;
     
     setConnectingTo(userId);
     try {
-      const success = await createConnection(userId, undefined, 'event');
-      
-      // Also update the connection with event_id
-      if (success) {
-        await supabase
-          .from('connections')
-          .update({ event_id: eventId })
-          .or(`and(user_id.eq.${session?.user?.id},connected_user_id.eq.${userId}),and(user_id.eq.${userId},connected_user_id.eq.${session?.user?.id})`);
-        
+      // Create a match entry with 'pending' status (requires other user to accept)
+      const { error } = await supabase
+        .from('matches')
+        .insert({
+          user_id: session.user.id,
+          matched_user_id: userId,
+          event_id: eventId,
+          status: 'pending',
+          match_score: 0,
+          shared_skills: [],
+          shared_interests: [],
+        });
+
+      if (error) {
+        if (error.code === '23505') {
+          toast({ title: 'Request already sent', description: 'You already sent a connection request.' });
+        } else {
+          throw error;
+        }
+      } else {
         toast({
-          title: "You're connected",
-          description: 'You can now message each other!',
+          title: 'Connection request sent!',
+          description: 'They will see your request and can accept it.',
         });
       }
+    } catch (err) {
+      console.error('Error sending connection request:', err);
+      toast({ title: 'Error', description: 'Failed to send request.', variant: 'destructive' });
     } finally {
       setConnectingTo(null);
     }
+  };
+
+  const handleAccept = async (matchId: string) => {
+    await updateMatchStatus(matchId, 'accepted');
+    toast({ title: 'Connection accepted!', description: 'You are now connected.' });
   };
 
   const handleMessage = (userId: string) => {
@@ -294,6 +324,7 @@ const EventSpace = () => {
                 const profile = participant.profile;
                 const isSelf = participant.user_id === session?.user?.id;
                 const connected = isConnected(participant.user_id);
+                const { status: matchStatus, matchId, isIncoming } = getMatchStatus(participant.user_id);
 
                 return (
                   <motion.div
@@ -343,7 +374,7 @@ const EventSpace = () => {
                       {/* Action Buttons */}
                       {!isSelf && (
                         <div className="mt-4 flex gap-2">
-                          {connected ? (
+                          {connected || matchStatus === 'accepted' ? (
                             <>
                               <NeonButton 
                                 size="sm" 
@@ -352,7 +383,7 @@ const EventSpace = () => {
                                 disabled
                               >
                                 <Check className="w-4 h-4" />
-                                <span>You're connected</span>
+                                <span>Connected</span>
                               </NeonButton>
                               <NeonButton 
                                 size="sm" 
@@ -361,6 +392,25 @@ const EventSpace = () => {
                                 <MessageSquare className="w-4 h-4" />
                               </NeonButton>
                             </>
+                          ) : matchStatus === 'pending' && isIncoming ? (
+                            <NeonButton 
+                              size="sm" 
+                              className="w-full"
+                              onClick={() => matchId && handleAccept(matchId)}
+                            >
+                              <Check className="w-4 h-4" />
+                              <span>Accept Request</span>
+                            </NeonButton>
+                          ) : matchStatus === 'pending' && !isIncoming ? (
+                            <NeonButton 
+                              size="sm" 
+                              variant="secondary" 
+                              className="w-full"
+                              disabled
+                            >
+                              <Loader2 className="w-4 h-4" />
+                              <span>Request Sent</span>
+                            </NeonButton>
                           ) : (
                             <NeonButton 
                               size="sm" 
