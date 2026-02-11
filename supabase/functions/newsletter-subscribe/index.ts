@@ -9,12 +9,27 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// In-memory rate limiting (per edge function instance)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW_MS = 3600_000; // 1 hour
+const RATE_LIMIT_MAX = 3; // max 3 requests per email per hour
+
+function isRateLimited(email: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(email);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(email, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+  entry.count++;
+  return entry.count > RATE_LIMIT_MAX;
+}
+
 interface NewsletterRequest {
   email: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -22,12 +37,22 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const { email }: NewsletterRequest = await req.json();
 
-    // Validate email
-    if (!email || !email.includes("@")) {
-      console.log("Invalid email provided:", email);
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email) || email.length > 255) {
       return new Response(
         JSON.stringify({ error: "Please provide a valid email address" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Rate limiting
+    if (isRateLimited(normalizedEmail)) {
+      return new Response(
+        JSON.stringify({ error: "Too many requests. Please try again later." }),
+        { status: 429, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
@@ -40,11 +65,10 @@ const handler = async (req: Request): Promise<Response> => {
     const { data: existing } = await supabase
       .from("newsletter_subscriptions")
       .select("id, confirmed")
-      .eq("email", email.toLowerCase().trim())
+      .eq("email", normalizedEmail)
       .single();
 
     if (existing) {
-      console.log("Email already subscribed:", email);
       return new Response(
         JSON.stringify({ message: "You're already subscribed to our newsletter!" }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -54,19 +78,17 @@ const handler = async (req: Request): Promise<Response> => {
     // Insert subscription
     const { error: insertError } = await supabase
       .from("newsletter_subscriptions")
-      .insert({ email: email.toLowerCase().trim(), confirmed: true });
+      .insert({ email: normalizedEmail, confirmed: true });
 
     if (insertError) {
       console.error("Error inserting subscription:", insertError);
       throw new Error("Failed to save subscription");
     }
 
-    console.log("New subscription added:", email);
-
     // Send confirmation email
-    const emailResponse = await resend.emails.send({
+    await resend.emails.send({
       from: "MeetMate <onboarding@resend.dev>",
-      to: [email],
+      to: [normalizedEmail],
       subject: "Welcome to MeetMate Newsletter! 🎉",
       html: `
         <!DOCTYPE html>
@@ -106,8 +128,6 @@ const handler = async (req: Request): Promise<Response> => {
       `,
     });
 
-    console.log("Confirmation email sent:", emailResponse);
-
     return new Response(
       JSON.stringify({ 
         success: true, 
@@ -118,7 +138,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("Error in newsletter-subscribe function:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "Failed to subscribe" }),
+      JSON.stringify({ error: "Failed to subscribe. Please try again." }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
