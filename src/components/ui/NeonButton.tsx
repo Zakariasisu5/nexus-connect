@@ -1,8 +1,7 @@
-import { motion, HTMLMotionProps } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { ReactNode } from 'react';
+import { ReactNode, ButtonHTMLAttributes } from 'react';
 
-interface NeonButtonProps extends Omit<HTMLMotionProps<'button'>, 'children'> {
+interface NeonButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
   variant?: 'primary' | 'secondary' | 'accent' | 'ghost' | 'multi' | 'blue';
   size?: 'sm' | 'md' | 'lg';
@@ -34,21 +33,20 @@ const NeonButton = ({
   };
 
   return (
-    <motion.button
+    <button
       className={cn(
-        'inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-300',
-        'disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none',
+        'inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-200',
+        'hover:scale-105 active:scale-95',
+        'disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100',
         variants[variant],
         sizes[size],
         className
       )}
-      whileHover={!disabled ? { scale: 1.05 } : undefined}
-      whileTap={!disabled ? { scale: 0.95 } : undefined}
       disabled={disabled}
       {...props}
     >
       {children}
-    </motion.button>
+    </button>
   );
 };
 
