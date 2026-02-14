@@ -1,8 +1,7 @@
-import { motion, HTMLMotionProps } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { ReactNode } from 'react';
+import { ReactNode, HTMLAttributes } from 'react';
 
-interface GlassCardProps extends Omit<HTMLMotionProps<'div'>, 'children'> {
+interface GlassCardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   className?: string;
   hover?: boolean;
@@ -24,26 +23,17 @@ const GlassCard = ({
   };
 
   return (
-    <motion.div
+    <div
       className={cn(
         'glass-card p-6 transition-all duration-300',
-        hover && 'hover:translate-y-[-4px]',
+        hover && 'hover:translate-y-[-4px] hover:scale-[1.02]',
         glow !== 'none' && glowColors[glow],
         className
       )}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      whileHover={hover ? { scale: 1.02 } : undefined}
       {...props}
     >
-      {/* Shimmer effect on hover */}
-      <div className="absolute inset-0 rounded-2xl opacity-0 hover:opacity-100 transition-opacity duration-500 pointer-events-none overflow-hidden">
-        <div className="absolute inset-0 animate-shimmer" />
-      </div>
-      
       {children}
-    </motion.div>
+    </div>
   );
 };
 

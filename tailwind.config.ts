@@ -127,6 +127,20 @@ export default {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-4px)" },
         },
+        "float-slow": {
+          "0%, 100%": { transform: "translate(0, 0)" },
+          "33%": { transform: "translate(40px, -20px)" },
+          "66%": { transform: "translate(-20px, 30px)" },
+        },
+        "float-slow-reverse": {
+          "0%, 100%": { transform: "translate(0, 0)" },
+          "33%": { transform: "translate(-30px, 20px)" },
+          "66%": { transform: "translate(20px, -30px)" },
+        },
+        "mesh-shift": {
+          "0%, 100%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -142,6 +156,9 @@ export default {
         "shimmer": "shimmer 2s infinite",
         "blink": "blink 1.4s ease-in-out infinite",
         "bounce-subtle": "bounce-subtle 0.5s ease-in-out",
+        "float-slow": "float-slow 25s ease-in-out infinite",
+        "float-slow-reverse": "float-slow-reverse 20s ease-in-out infinite",
+        "mesh-shift": "mesh-shift 30s ease-in-out infinite",
       },
       backdropBlur: {
         xs: "2px",

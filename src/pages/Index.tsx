@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { 
   Users, 
@@ -40,14 +39,8 @@ const testimonials = [
 ];
 
 const trustedCompanies = [
-  'Microsoft',
-  'Google',
-  'Salesforce',
-  'Stripe',
-  'Slack',
-  'Notion',
-  'Figma',
-  'Shopify',
+  'Microsoft', 'Google', 'Salesforce', 'Stripe',
+  'Slack', 'Notion', 'Figma', 'Shopify',
 ];
 
 const features = [
@@ -77,7 +70,6 @@ const features = [
   },
 ];
 
-
 const Index = () => {
   const { session } = useAuth();
 
@@ -93,15 +85,8 @@ const Index = () => {
       <div className="space-y-24">
         {/* Hero Section */}
         <section className="text-center space-y-8 pt-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="space-y-6"
-          >
-           
-              
-              <span className=''>Event & Conference Management Made Simple</span>
+          <div className="space-y-6 animate-fade-in">
+            <span>Event & Conference Management Made Simple</span>
 
             <h3 className="text-5xl md:text-7xl font-bold leading-tight">
               <span className="text-foreground">Seamless Events,</span>
@@ -145,44 +130,24 @@ const Index = () => {
                 </>
               )}
             </div>
-          </motion.div>
+          </div>
 
           {/* Stats */}
-          <motion.div
-            className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto pt-8"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            {stats.map((stat, index) => (
-              <motion.div
-                key={stat.label}
-                className="text-center p-4"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.5 + index * 0.1 }}
-              >
-                <motion.p
-                  className="text-3xl md:text-4xl font-bold gradient-text"
-                  animate={{ scale: [1, 1.05, 1] }}
-                  transition={{ duration: 2, repeat: Infinity, delay: index * 0.3 }}
-                >
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto pt-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+            {stats.map((stat) => (
+              <div key={stat.label} className="text-center p-4">
+                <p className="text-3xl md:text-4xl font-bold gradient-text">
                   {stat.value}
-                </motion.p>
+                </p>
                 <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
-              </motion.div>
+              </div>
             ))}
-          </motion.div>
+          </div>
         </section>
 
-        {/* Event Images Gallery - responsive for mobile & tablet */}
+        {/* Event Images Gallery */}
         <section className="max-w-6xl mx-auto px-4">
-          <motion.div
-            className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 }}
-          >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch animate-fade-in" style={{ animationDelay: '0.1s' }}>
             <figure className="relative rounded-xl overflow-hidden shadow-lg group">
               <img
                 src={Event}
@@ -220,167 +185,111 @@ const Index = () => {
                 </div>
               </figcaption>
             </figure>
-          </motion.div>
+          </div>
         </section>
 
         {/* Features Section */}
         <section className="space-y-12">
-          <motion.div
-            className="text-center space-y-4"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
+          <div className="text-center space-y-4">
             <h2 className="text-3xl md:text-4xl font-bold">
-              <span className="">Everything You Need</span> to Run Better Events
+              Everything You Need to Run Better Events
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               From check-in to follow-up, manage every aspect of your event with confidence.
             </p>
-          </motion.div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {features.map((feature, index) => (
-              <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <GlassCard className="p-8 h-full group" glow="primary">
-                  <div className="space-y-4">
-                    <motion.div
-                      className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center`}
-                      whileHover={{ scale: 1.1, rotate: 5 }}
-                    >
-                      <feature.icon className="w-7 h-7 text-white" />
-                    </motion.div>
-                    <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">
-                      {feature.title}
-                    </h3>
-                    <p className="text-muted-foreground">{feature.description}</p>
+            {features.map((feature) => (
+              <GlassCard key={feature.title} className="p-8 h-full group" glow="primary">
+                <div className="space-y-4">
+                  <div
+                    className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center transition-transform duration-200 group-hover:scale-110`}
+                  >
+                    <feature.icon className="w-7 h-7 text-white" />
                   </div>
-                </GlassCard>
-              </motion.div>
+                  <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">
+                    {feature.title}
+                  </h3>
+                  <p className="text-muted-foreground">{feature.description}</p>
+                </div>
+              </GlassCard>
             ))}
           </div>
         </section>
 
-        {/* Trusted Companies Section */}
+        {/* Trusted Companies */}
         <section className="space-y-8">
-          <motion.div
-            className="text-center"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
+          <div className="text-center">
             <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
               Trusted by leading organizations worldwide
             </p>
-          </motion.div>
-
-          <motion.div
-            className="flex flex-wrap items-center justify-center gap-8 md:gap-12"
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-          >
-            {trustedCompanies.map((company, index) => (
-              <motion.div
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12">
+            {trustedCompanies.map((company) => (
+              <div
                 key={company}
-                className="text-xl md:text-2xl font-bold text-muted-foreground/70 hover:text-foreground transition-colors"
-                initial={{ opacity: 0, y: 10 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.05 }}
-                whileHover={{ scale: 1.05 }}
+                className="text-xl md:text-2xl font-bold text-muted-foreground/70 hover:text-foreground transition-colors duration-200 hover:scale-105"
               >
                 {company}
-              </motion.div>
+              </div>
             ))}
-          </motion.div>
+          </div>
         </section>
 
-        {/* Testimonials Section */}
+        {/* Testimonials */}
         <section className="space-y-12">
-          <motion.div
-            className="text-center space-y-4"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
+          <div className="text-center space-y-4">
             <h2 className="text-3xl md:text-4xl font-bold">
               What Our <span className="text-primary">Customers</span> Say
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Join thousands of event professionals who've transformed their events with MeetMate.
             </p>
-          </motion.div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {testimonials.map((testimonial, index) => (
-              <motion.div
-                key={testimonial.name}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <GlassCard className="p-6 h-full flex flex-col" glow="primary">
-                  <Quote className="w-8 h-8 text-primary/40 mb-4" />
-                  <p className="text-muted-foreground flex-grow mb-6 italic">
-                    "{testimonial.quote}"
-                  </p>
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold">
-                      {testimonial.avatar}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-foreground">{testimonial.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {testimonial.role}, {testimonial.company}
-                      </p>
-                    </div>
+            {testimonials.map((testimonial) => (
+              <GlassCard key={testimonial.name} className="p-6 h-full flex flex-col" glow="primary">
+                <Quote className="w-8 h-8 text-primary/40 mb-4" />
+                <p className="text-muted-foreground flex-grow mb-6 italic">
+                  "{testimonial.quote}"
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold">
+                    {testimonial.avatar}
                   </div>
-                </GlassCard>
-              </motion.div>
+                  <div>
+                    <p className="font-semibold text-foreground">{testimonial.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {testimonial.role}, {testimonial.company}
+                    </p>
+                  </div>
+                </div>
+              </GlassCard>
             ))}
           </div>
         </section>
 
         {/* CTA Section */}
         <section className="text-center">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-          >
-            <GlassCard className="p-12 relative overflow-hidden" glow="primary">
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-primary/20 via-accent/20 to-secondary/20"
-                animate={{
-                  opacity: [0.3, 0.5, 0.3],
-                }}
-                transition={{ duration: 3, repeat: Infinity }}
-              />
-              <div className="relative z-10 space-y-6">
-                <h2 className="text-3xl md:text-4xl font-bold">
-                  Ready to Elevate Your Events?
-                </h2>
-                <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-                  Join thousands of organizers who trust MeetMate to deliver exceptional event experiences.
-                </p>
-                <Link to={session ? "/matches" : "/auth"}>
-                  <NeonButton size="lg">
-                    <span>{session ? "View Your Matches" : "Start Free Trial"}</span>
-                    <ArrowRight className="w-5 h-5" />
-                  </NeonButton>
-                </Link>
-              </div>
-            </GlassCard>
-          </motion.div>
+          <GlassCard className="p-12 relative overflow-hidden" glow="primary">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-accent/20 to-secondary/20 opacity-40" />
+            <div className="relative z-10 space-y-6">
+              <h2 className="text-3xl md:text-4xl font-bold">
+                Ready to Elevate Your Events?
+              </h2>
+              <p className="text-lg text-muted-foreground max-w-xl mx-auto">
+                Join thousands of organizers who trust MeetMate to deliver exceptional event experiences.
+              </p>
+              <Link to={session ? "/matches" : "/auth"}>
+                <NeonButton size="lg">
+                  <span>{session ? "View Your Matches" : "Start Free Trial"}</span>
+                  <ArrowRight className="w-5 h-5" />
+                </NeonButton>
+              </Link>
+            </div>
+          </GlassCard>
         </section>
       </div>
     </Layout>
