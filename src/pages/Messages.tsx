@@ -1,11 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, MessageCircle, Search, ArrowLeft, Check, CheckCheck, MoreVertical, Phone, Video } from 'lucide-react';
+import { Send, MessageCircle, Search, ArrowLeft, Check, CheckCheck, MoreVertical, Phone, Video, User, Trash2, VolumeX, Volume2 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { useChat, Conversation, ChatMessage } from '@/hooks/useChat';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAnalytics } from '@/hooks/useAnalytics';
+import { toast } from 'sonner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const Messages = () => {
   const { session } = useAuth();
@@ -207,15 +215,58 @@ const Messages = () => {
                       <p className="text-xs text-green-500">online</p>
                     </div>
                     <div className="flex items-center gap-1">
-                      <button className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-foreground">
+                      <button
+                        onClick={() => {
+                          toast.info(`Starting video call with ${activeConv.other_user?.full_name || 'user'}...`, {
+                            description: 'Video calling feature coming soon!',
+                          });
+                        }}
+                        className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-foreground"
+                      >
                         <Video className="w-5 h-5" />
                       </button>
-                      <button className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-foreground">
+                      <button
+                        onClick={() => {
+                          toast.info(`Calling ${activeConv.other_user?.full_name || 'user'}...`, {
+                            description: 'Voice calling feature coming soon!',
+                          });
+                        }}
+                        className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-foreground"
+                      >
                         <Phone className="w-5 h-5" />
                       </button>
-                      <button className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-foreground">
-                        <MoreVertical className="w-5 h-5" />
-                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-foreground">
+                            <MoreVertical className="w-5 h-5" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const userId = activeConv.other_user?.id;
+                              if (userId) navigate(`/profile?user=${userId}`);
+                            }}
+                          >
+                            <User className="w-4 h-4 mr-2" />
+                            View Profile
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => toast.info('Notifications muted for this chat')}
+                          >
+                            <VolumeX className="w-4 h-4 mr-2" />
+                            Mute Notifications
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => toast.info('Clear chat feature coming soon')}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Clear Chat
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
 
